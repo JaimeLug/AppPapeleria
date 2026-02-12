@@ -1,0 +1,38 @@
+  /// Bulk export all product categories
+  Future<void> bulkExportCategories(String spreadsheetId, List<String> categories) async {
+    if (_client == null || spreadsheetId.isEmpty || categories.isEmpty) return;
+
+    try {
+      // Ensure "Categorías" sheet exists
+      await _ensureSheetExists(
+        spreadsheetId,
+        'Categorías',
+        ['ID', 'Nombre'],
+      );
+
+      final sheetsApi = sheets.SheetsApi(_client!);
+
+      // Prepare all rows with sequential IDs
+      final rows = categories.asMap().entries.map((entry) => [
+        (entry.key + 1).toString(), // ID (1-indexed)
+        entry.value, // Category name
+      ]).toList();
+
+      final valueRange = sheets.ValueRange(
+        range: 'Categorías!A2', // Start from row 2 (after headers)
+        values: rows,
+      );
+
+      await sheetsApi.spreadsheets.values.append(
+        valueRange,
+        spreadsheetId,
+        'Categorías!A2',
+        valueInputOption: 'USER_ENTERED',
+      );
+
+      print('${categories.length} categorías exportadas exitosamente');
+    } catch (e) {
+      print('Error en exportación masiva de categorías: $e');
+      rethrow;
+    }
+  }
