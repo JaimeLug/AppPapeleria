@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_theme.dart';
 import '../../../inventory/presentation/pages/product_management_page.dart';
@@ -210,7 +211,30 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                   Text(welcomeSubtitle, style: Theme.of(context).textTheme.bodyLarge),
                 ],
               ),
-              const MonthSelector(),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.refresh, color: AppTheme.primaryColor),
+                    tooltip: 'Sincronizar ahora',
+                    onPressed: () async {
+                      final success = await ref.read(ordersProvider.notifier).syncOrders();
+                      if (context.mounted) {
+                         if (success) {
+                           ScaffoldMessenger.of(context).showSnackBar(
+                             const SnackBar(content: Text('Datos actualizados correctamente'), backgroundColor: Colors.green),
+                           );
+                         } else {
+                           ScaffoldMessenger.of(context).showSnackBar(
+                             const SnackBar(content: Text('No se pudo actualizar. Mostrando datos locales.'), backgroundColor: Colors.orange),
+                           );
+                         }
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 16),
+                  const MonthSelector(),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 32),
@@ -234,11 +258,28 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 final spacing = 16.0;
                 final unitWidth = (width - ((cols - 1) * spacing)) / cols;
                 
-                return SingleChildScrollView(
-                  child: Wrap(
-                    spacing: spacing,
-                    runSpacing: spacing,
-                    children: layout.map((config) => _buildTargetWidget(config, context, unitWidth, cols, spacing)).toList(),
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    final success = await ref.read(ordersProvider.notifier).syncOrders();
+                    if (context.mounted) {
+                       if (success) {
+                         ScaffoldMessenger.of(context).showSnackBar(
+                           const SnackBar(content: Text('Datos actualizados correctamente'), backgroundColor: Colors.green),
+                         );
+                       } else {
+                         ScaffoldMessenger.of(context).showSnackBar(
+                           const SnackBar(content: Text('No se pudo actualizar. Mostrando datos locales.'), backgroundColor: Colors.orange),
+                         );
+                       }
+                    }
+                  },
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Wrap(
+                      spacing: spacing,
+                      runSpacing: spacing,
+                      children: layout.map((config) => _buildTargetWidget(config, context, unitWidth, cols, spacing)).toList(),
+                    ),
                   ),
                 );
               }

@@ -13,12 +13,13 @@ class OrderRepositoryImpl implements OrderRepository {
   OrderRepositoryImpl(this.orderBox);
 
   @override
-  Future<Either<Failure, void>> addOrder(OrderEntity order) async {
+  Future<Either<Failure, bool>> addOrder(OrderEntity order) async {
     try {
       // Manual conversion if needed, or update OrderModel.fromEntity
       final itemsModel = order.items.map((e) => OrderItemModel.fromEntity(e)).toList();
       
       String? eventId = order.googleEventId;
+      bool syncSuccess = false;
       
       // --- Google Cloud Sync (before saving to get event ID) ---
       try {
@@ -34,6 +35,7 @@ class OrderRepositoryImpl implements OrderRepository {
              if (settings['syncSheetsEnabled'] == true && settings['googleSheetId'] != null) {
                print('LOG: Attempting to sync to Sheets...');
                await googleService.appendOrderToSheet(settings['googleSheetId'], order);
+               syncSuccess = true; // Mark as synced if sheet append works (primary)
              }
 
              // 2. Calendar Sync - Lifecycle Management
@@ -56,6 +58,7 @@ class OrderRepositoryImpl implements OrderRepository {
         }
       } catch (e) {
         print('LOG: Error during Google Sync: $e');
+        syncSuccess = false; // Explicitly false on error
       }
       // -------------------------
       
@@ -66,7 +69,7 @@ class OrderRepositoryImpl implements OrderRepository {
         totalPrice: order.totalPrice,
         pendingBalance: order.pendingBalance,
         deliveryDate: order.deliveryDate,
-        isSynced: order.isSynced,
+        isSynced: syncSuccess, // Update model with actual sync status
         saleDate: order.saleDate,
         status: order.status,
         paymentStatus: order.paymentStatus,
@@ -75,11 +78,9 @@ class OrderRepositoryImpl implements OrderRepository {
       );
 
       await orderBox.put(orderModel.id, orderModel);
-      print('LOG: Saved order to Hive - deliveryStatus: ${orderModel.deliveryStatus}, paymentStatus: ${orderModel.paymentStatus}');
+      print('LOG: Saved order to Hive - deliveryStatus: ${orderModel.deliveryStatus}, paymentStatus: ${orderModel.paymentStatus}, Synced: $syncSuccess');
 
-
-
-      return const Right(null);
+      return Right(syncSuccess);
     } catch (e) {
       print('LOG: Error saving order to Hive: $e');
       return Left(CacheFailure(e.toString()));

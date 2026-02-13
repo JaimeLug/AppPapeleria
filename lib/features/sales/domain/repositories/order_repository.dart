@@ -4,6 +4,6 @@ import '../../domain/entities/order.dart';
 
 abstract class OrderRepository {
   Future<Either<Failure, List<OrderEntity>>> getOrders();
-  Future<Either<Failure, void>> addOrder(OrderEntity order);
+  Future<Either<Failure, bool>> addOrder(OrderEntity order);
   Future<Either<Failure, void>> deleteOrder(String id);
 }

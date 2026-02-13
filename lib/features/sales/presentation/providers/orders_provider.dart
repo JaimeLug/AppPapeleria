@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive/hive.dart';
+import '../../../../core/services/google_cloud_service.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/repositories/order_repository.dart';
 import 'cart_provider.dart';
@@ -91,6 +93,37 @@ class OrdersNotifier extends StateNotifier<AsyncValue<List<OrderEntity>>> {
         getOrders();
       },
     );
+  }
+  Future<bool> syncOrders() async {
+    try {
+      final settingsBox = Hive.box('settings');
+      final settingsMap = settingsBox.get('appSettings');
+      if (settingsMap == null) return false;
+      
+      final settings = Map<String, dynamic>.from(settingsMap);
+      final sheetId = settings['googleSheetId'];
+      
+      if (sheetId == null || sheetId.isEmpty) {
+        return false;
+      }
+
+      final googleService = GoogleCloudService();
+      if (!googleService.isAuthenticated) {
+        // Try to restore session
+        final restored = await googleService.authenticateFromStoredCredentials();
+        if (!restored) return false;
+      }
+
+      // Perform Import (Upsert)
+      await googleService.importFromSheets(sheetId, replaceLocal: false);
+      
+      // Refresh local list
+      await getOrders();
+      return true;
+    } catch (e) {
+      print('LOG: Sync error: $e');
+      return false;
+    }
   }
 }
 
