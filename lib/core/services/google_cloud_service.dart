@@ -178,6 +178,87 @@ class GoogleCloudService {
     }
   }
 
+  // --- Deletion Logic ---
+
+  Future<void> deleteRowById(String spreadsheetId, String sheetTitle, String id) async {
+    if (_client == null || spreadsheetId.isEmpty || id.isEmpty) return;
+    
+    final sheetsApi = sheets.SheetsApi(_client!);
+    
+    try {
+      // 1. Get sheetId (integer) from sheetTitle
+      final spreadsheet = await sheetsApi.spreadsheets.get(spreadsheetId);
+      final sheet = spreadsheet.sheets?.firstWhere(
+        (s) => s.properties?.title == sheetTitle,
+        orElse: () => sheets.Sheet(),
+      );
+      
+      final sheetId = sheet?.properties?.sheetId;
+      if (sheetId == null) {
+        print('Hoja "$sheetTitle" no encontrada para eliminación.');
+        return;
+      }
+
+      // 2. Find row index (fetch Column A)
+      // Note: We fetch A:A roughly. A1 is header. A2 starts data.
+      // API returns values. Index 0 of values corresponds to the range start.
+      // If we ask for A:A, values[0] is A1.
+      final res = await sheetsApi.spreadsheets.values.get(spreadsheetId, '$sheetTitle!A:A');
+      final values = res.values;
+      
+      if (values == null || values.isEmpty) {
+        print('Hoja "$sheetTitle" vacía o sin datos en Columna A.');
+        return;
+      }
+
+      // Find the index of the row with matching ID
+      // We look for strict string equality
+      int rowIndex = -1;
+      for (int i = 0; i < values.length; i++) {
+        if (values[i].isNotEmpty && values[i][0].toString() == id) {
+          rowIndex = i; // This is the 0-based index in the 'values' list, which maps to row 'i' in the sheet (0-indexed for API)
+          break;
+        }
+      }
+
+      if (rowIndex == -1) {
+        print('ID "$id" no encontrado en hoja "$sheetTitle".');
+        return;
+      }
+
+      // 3. Execute BatchUpdate with DeleteDimension
+      final deleteRequest = sheets.DeleteDimensionRequest(
+        range: sheets.DimensionRange(
+          sheetId: sheetId,
+          dimension: 'ROWS',
+          startIndex: rowIndex,
+          endIndex: rowIndex + 1,
+        ),
+      );
+
+      final batchUpdate = sheets.BatchUpdateSpreadsheetRequest(
+        requests: [
+          sheets.Request(deleteDimension: deleteRequest),
+        ],
+      );
+
+      await sheetsApi.spreadsheets.batchUpdate(batchUpdate, spreadsheetId);
+      print('Fila con ID "$id" eliminada de "$sheetTitle" (Row ${rowIndex + 1}).');
+
+    } catch (e) {
+      if (_isAuthError(e)) {
+        print('Auth error detected in deleteRowById: $e');
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
+      }
+      print('Error eliminando fila en Sheets: $e');
+      // We do not rethrow strictly, to Avoid crashing local app flow, 
+      // but Repository might handle it if we did. The plan said "notify error but don't stop local delete".
+      // We'll just log it here as "Error ignored remotely" or throw if we want the caller to know.
+      // For now, let's print.
+    }
+  }
+
   // --- Legacy Single-Item Methods (for real-time sync) ---
 
   Future<void> appendOrderToSheet(String spreadsheetId, OrderEntity order) async {

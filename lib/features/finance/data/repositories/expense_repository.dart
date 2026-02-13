@@ -45,5 +45,24 @@ class ExpenseRepository {
 
   Future<void> deleteExpense(String id) async {
     await _box.delete(id);
+    
+    try {
+      final googleService = GoogleCloudService();
+      if (googleService.isAuthenticated) {
+         final settingsBox = Hive.box('settings');
+         final settingsMap = settingsBox.get('appSettings');
+         if (settingsMap != null) {
+           final settings = Map<String, dynamic>.from(settingsMap);
+           if (settings['syncSheetsEnabled'] == true && settings['googleSheetId'] != null) {
+             final sheetId = settings['googleSheetId'] as String;
+             if (sheetId.isNotEmpty) {
+               await googleService.deleteRowById(sheetId, 'Gastos', id);
+             }
+           }
+         }
+      }
+    } catch (e) {
+      print('LOG: Error deleting expense from cloud: $e');
+    }
   }
 }
