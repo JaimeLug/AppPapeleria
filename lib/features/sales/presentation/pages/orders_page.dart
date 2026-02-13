@@ -29,7 +29,7 @@ class _OrdersPageState extends State<OrdersPage> {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: AppTheme.backgroundColor,
+
         appBar: AppBar(
           title: Column(
             children: [
@@ -44,7 +44,7 @@ class _OrdersPageState extends State<OrdersPage> {
                     hintText: 'Buscar por nombre del cliente...',
                     prefixIcon: const Icon(Icons.search, size: 20),
                     filled: true,
-                    fillColor: AppTheme.backgroundColor,
+                    fillColor: Theme.of(context).inputDecorationTheme.fillColor,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(30),
                       borderSide: BorderSide.none,
@@ -60,7 +60,7 @@ class _OrdersPageState extends State<OrdersPage> {
               ),
             ],
           ),
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
           elevation: 0,
           toolbarHeight: 110,
           bottom: const TabBar(

@@ -25,19 +25,17 @@ class OrderCard extends ConsumerWidget {
 
   Color _getStatusColor(String status) {
     switch (status) {
+      case 'Pendiente':
+        return Colors.redAccent;
       case 'Diseño':
-        return Colors.blue;
-      case 'Impresión':
-        return Colors.orange;
-      case 'Armado':
-        return Colors.purple;
-      case 'Listo para entrega':
-        return Colors.teal;
-      case 'Terminado':
+        return Colors.purpleAccent;
+      case 'Armando':
+        return Colors.orangeAccent;
       case 'Entregado':
+      case 'Terminado': // Legacy support
         return Colors.green;
       default:
-        return AppTheme.secondaryColor;
+        return Colors.grey;
     }
   }
 
@@ -421,7 +419,7 @@ class OrderCard extends ConsumerWidget {
       child: Card(
         elevation: 2,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        color: Colors.white,
+        color: Theme.of(context).cardColor,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -515,14 +513,51 @@ class OrderCard extends ConsumerWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             'Pendiente',
-                            'En Proceso',
-                            'Listo para entrega',
+                            'Diseño',
+                            'Armando',
                             'Entregado',
                           ].map((status) => ListTile(
                             title: Text(status),
+                            leading: Icon(Icons.circle, color: _getStatusColor(status), size: 16),
                             onTap: () {
-                              onStatusChange(status);
                               Navigator.pop(context);
+                              if (status == 'Entregado') {
+                                if (order.pendingBalance > 0.01) {
+                                  // Ask to pay debt
+                                  showDialog(
+                                    context: context, 
+                                    builder: (context) => AlertDialog(
+                                      title: const Text('Entrega con Saldo Pendiente'),
+                                      content: Text('El pedido tiene un saldo pendiente de \$${order.pendingBalance.toStringAsFixed(2)}.\n\n¿Deseas marcarlo como PAGADO y ENTREGADO?'),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                            // Mark delivered only (keep debt)
+                                            if (onMarkDelivered != null) onMarkDelivered!();
+                                          },
+                                          child: const Text('Solo Entregar (Mantiene Deuda)'),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                            // Liquidate debt AND mark delivered
+                                            if (onLiquidateDebt != null) onLiquidateDebt!();
+                                            if (onMarkDelivered != null) onMarkDelivered!();
+                                          },
+                                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                                          child: const Text('Pagado y Entregado'),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                } else {
+                                  // No debt, just deliver
+                                  if (onMarkDelivered != null) onMarkDelivered!();
+                                }
+                              } else {
+                                onStatusChange(status);
+                              }
                             },
                           )).toList(),
                         ),

@@ -105,7 +105,7 @@ class AppTheme {
         brightness: Brightness.dark,
         primary: primaryColor,
         secondary: secondaryColor,
-        surface: const Color(0xFF1E1E1E),
+        surface: const Color(0xFF2C2C2C),
         background: const Color(0xFF121212),
       ),
       textTheme: TextTheme(
@@ -121,7 +121,7 @@ class AppTheme {
         bodyMedium: GoogleFonts.quicksand(color: Colors.white70, fontSize: 14),
       ),
       cardTheme: const CardThemeData(
-        color: Color(0xFF1E1E1E),
+        color: Color(0xFF2C2C2C),
         elevation: 2,
         shadowColor: Colors.black,
         shape: RoundedRectangleBorder(

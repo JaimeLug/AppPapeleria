@@ -18,7 +18,7 @@ class SalesPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+
       body: Row(
         children: [
           // Left: Product Catalog (60%)
@@ -73,7 +73,7 @@ class _ProductCatalogState extends ConsumerState<_ProductCatalog> {
               hintText: 'Buscar por nombre o categoría...',
               prefixIcon: const Icon(Icons.search),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: Theme.of(context).inputDecorationTheme.fillColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(30),
                 borderSide: BorderSide.none,
@@ -148,7 +148,7 @@ class _ProductItemCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -245,7 +245,7 @@ class _CartSummaryState extends ConsumerState<_CartSummary> {
     final cartState = ref.watch(cartProvider);
 
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).cardColor,
       padding: const EdgeInsets.all(32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -558,7 +558,7 @@ class _CartSummaryState extends ConsumerState<_CartSummary> {
           style: TextStyle(
             fontSize: isHighlighted ? 18 : 16,
             fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
-            color: isHighlighted ? AppTheme.primaryColor : AppTheme.bodyColor,
+            color: isHighlighted ? AppTheme.primaryColor : Theme.of(context).textTheme.bodyMedium?.color,
           ),
         ),
         Text(
@@ -566,7 +566,7 @@ class _CartSummaryState extends ConsumerState<_CartSummary> {
           style: TextStyle(
             fontSize: isHighlighted ? 20 : 16,
             fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
-            color: isHighlighted ? AppTheme.primaryColor : AppTheme.titleColor,
+            color: isHighlighted ? AppTheme.primaryColor : Theme.of(context).textTheme.titleLarge?.color,
           ),
         ),
       ],

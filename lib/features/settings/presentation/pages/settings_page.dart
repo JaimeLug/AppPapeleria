@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:app_papeleria/config/theme/app_theme.dart';
 import 'package:app_papeleria/core/services/google_cloud_service.dart';
+import 'package:app_papeleria/core/exceptions/auth_exception.dart';
 import 'package:app_papeleria/features/finance/data/models/expense_model.dart';
 import 'package:app_papeleria/features/finance/data/models/income_model.dart';
 import 'package:app_papeleria/features/finance/presentation/providers/finance_provider.dart';
@@ -956,12 +957,85 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
       if (context.mounted) {
         Navigator.pop(context); // Close progress
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ Operación completada con éxito'), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ Operación completada con éxito'), 
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    } on AuthException catch (authError) {
+      // Handle authentication errors specifically
+      if (context.mounted) {
+        Navigator.pop(context); // Close progress dialog
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red, size: 32),
+                SizedBox(width: 12),
+                Text('Sesión Expirada', style: TextStyle(color: Colors.red)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  authError.message,
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Tus credenciales han sido limpiadas automáticamente.',
+                          style: TextStyle(fontSize: 13, color: Colors.orange),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Entendido'),
+              ),
+            ],
+          ),
+        );
       }
     } catch (e) {
+      // Handle other errors
       if (context.mounted) {
         Navigator.pop(context); // Close progress
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'), 
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
       }
     }
   }
