@@ -4,17 +4,20 @@ import '../../../../config/theme/app_theme.dart';
 import '../../../inventory/presentation/pages/product_management_page.dart';
 import '../../../sales/presentation/pages/sales_page.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 
 import '../../../finance/presentation/widgets/month_selector.dart';
 import '../providers/dashboard_provider.dart';
-import '../../../../core/services/pdf_service.dart';
 import '../../../sales/presentation/pages/orders_page.dart';
 import '../../../sales/presentation/pages/agenda_page.dart';
 import '../../../finance/presentation/pages/expenses_page.dart';
 import '../../../sales/presentation/providers/orders_provider.dart';
 import 'package:app_papeleria/features/settings/presentation/pages/settings_page.dart';
 import 'package:app_papeleria/features/settings/presentation/providers/settings_provider.dart';
+import '../../domain/models/dashboard_widget_config.dart';
+import '../../presentation/widgets/dashboard_widget_wrapper.dart'; // Needed for type checking/stack wrapping if explicit
+import '../utils/dashboard_constants.dart';
+import '../utils/dashboard_widgets_registry.dart';
+import '../widgets/add_widget_sheet.dart';
 
 class DashboardPage extends ConsumerStatefulWidget {
   const DashboardPage({super.key});
@@ -25,11 +28,18 @@ class DashboardPage extends ConsumerStatefulWidget {
 
 class _DashboardPageState extends ConsumerState<DashboardPage> {
   int _selectedIndex = 0;
+  bool _isDragging = false; // We can track this if DashboardWidgetWrapper notifies us, 
+                            // or imply it via DragTarget. But Draggable is now deep inside.
+                            // To update FAB we need to know. 
+                            // For now, FAB might not turn red unless we lift state.
+                            // Ignoring FAB visual change for strict adherence to "Handle Only" first,
+                            // OR we accept that FAB might stay static if not getting callbacks.
+                            // Users requested "Elimina LongPressDragabble... Activacion... ::".
+                            // I will keep Layout responsive first.
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
       body: Row(
         children: [
           // Sidebar
@@ -54,11 +64,40 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           ),
         ],
       ),
+      floatingActionButton: _selectedIndex == 0 ? _buildMutantFab(context) : null,
+    );
+  }
+
+  Widget _buildMutantFab(BuildContext context) {
+    return DragTarget<String>(
+      onWillAccept: (data) => true,
+      onAccept: (widgetId) {
+        _removeWidget(widgetId);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Widget eliminado')),
+        );
+      },
+      builder: (context, candidateData, rejectedData) {
+        final isTargeted = candidateData.isNotEmpty;
+        // _isDragging logic needs to be hoisted to make this perfect, 
+        // but for now relying on target state is decent feedback.
+        return AnimatedScale(
+          scale: isTargeted ? 1.2 : 1.0,
+          duration: const Duration(milliseconds: 200),
+          child: FloatingActionButton(
+            onPressed: _showAddWidgetSheet,
+            backgroundColor: isTargeted ? Colors.redAccent : AppTheme.primaryColor,
+            child: Icon(
+              isTargeted ? Icons.delete_outline : Icons.add,
+              color: Colors.white,
+            ),
+          ),
+        );
+      },
     );
   }
 
   void _navigateTo(int index) {
-    // If navigating to Finance (index 5) and PIN is set, ask for PIN
     if (index == 5) {
       final settings = ref.read(settingsProvider);
       if (settings.securityPin != null && settings.securityPin!.isNotEmpty) {
@@ -66,11 +105,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
         return;
       }
     }
-    
     setState(() => _selectedIndex = index);
   }
 
   void _showPinDialog(int targetIndex, String correctPin) {
+    // ... same logic
     final controller = TextEditingController();
     showDialog(
       context: context,
@@ -81,10 +120,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           keyboardType: TextInputType.number,
           maxLength: 4,
           obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Ingresa PIN',
-            border: OutlineInputBorder(),
-          ),
+          decoration: const InputDecoration(labelText: 'Ingresa PIN', border: OutlineInputBorder()),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
@@ -109,21 +145,16 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   Widget _buildSidebar(BuildContext context) {
     return Container(
       width: 250,
-      color: Theme.of(context).cardColor, // Dynamic Background
+      color: Theme.of(context).cardColor,
       child: Column(
         children: [
           const SizedBox(height: 40),
-          // Logo
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             alignment: Alignment.centerLeft,
             child: Row(
               children: [
-                Image.asset(
-                  'assets/images/logo.png',
-                  height: 40,
-                  fit: BoxFit.contain,
-                ),
+                Image.asset('assets/images/logo.png', height: 40, fit: BoxFit.contain),
                 const SizedBox(width: 12),
                 Text(
                   'Corateca.',
@@ -137,49 +168,14 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             ),
           ),
           const SizedBox(height: 60),
-          _SidebarItem(
-            icon: Icons.dashboard_outlined,
-            label: 'Dashboard',
-            isSelected: _selectedIndex == 0,
-            onTap: () => _navigateTo(0),
-          ),
-           _SidebarItem(
-            icon: Icons.list_alt_outlined,
-            label: 'Pedidos',
-            isSelected: _selectedIndex == 1,
-            onTap: () => _navigateTo(1),
-          ),
-          _SidebarItem(
-            icon: Icons.inventory_2_outlined,
-            label: 'Productos',
-            isSelected: _selectedIndex == 2,
-            onTap: () => _navigateTo(2),
-          ),
-          _SidebarItem(
-            icon: Icons.shopping_bag_outlined,
-            label: 'Ventas',
-            isSelected: _selectedIndex == 3,
-            onTap: () => _navigateTo(3),
-          ),
-          _SidebarItem(
-            icon: Icons.calendar_today_outlined,
-            label: 'Agenda',
-            isSelected: _selectedIndex == 4,
-            onTap: () => _navigateTo(4),
-          ),
-          _SidebarItem(
-            icon: Icons.attach_money,
-            label: 'Finanzas',
-            isSelected: _selectedIndex == 5,
-            onTap: () => _navigateTo(5),
-          ),
+          _SidebarItem(icon: Icons.dashboard_outlined, label: 'Dashboard', isSelected: _selectedIndex == 0, onTap: () => _navigateTo(0)),
+          _SidebarItem(icon: Icons.list_alt_outlined, label: 'Pedidos', isSelected: _selectedIndex == 1, onTap: () => _navigateTo(1)),
+          _SidebarItem(icon: Icons.inventory_2_outlined, label: 'Productos', isSelected: _selectedIndex == 2, onTap: () => _navigateTo(2)),
+          _SidebarItem(icon: Icons.shopping_bag_outlined, label: 'Ventas', isSelected: _selectedIndex == 3, onTap: () => _navigateTo(3)),
+          _SidebarItem(icon: Icons.calendar_today_outlined, label: 'Agenda', isSelected: _selectedIndex == 4, onTap: () => _navigateTo(4)),
+          _SidebarItem(icon: Icons.attach_money, label: 'Finanzas', isSelected: _selectedIndex == 5, onTap: () => _navigateTo(5)),
           const Spacer(),
-          _SidebarItem(
-            icon: Icons.settings_outlined,
-            label: 'Configuración',
-            isSelected: _selectedIndex == 6,
-            onTap: () => _navigateTo(6),
-          ),
+          _SidebarItem(icon: Icons.settings_outlined, label: 'Configuración', isSelected: _selectedIndex == 6, onTap: () => _navigateTo(6)),
           const SizedBox(height: 24),
         ],
       ),
@@ -187,252 +183,198 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 
   Widget _buildDashboardContent(BuildContext context) {
-    final statsAsync = ref.watch(dashboardStatsProvider);
-    final settings = ref.watch(settingsProvider);
+    // Optimization: Select only the fields we trigger rebuilds on. 
+    // Watching the whole provider caused full rebuilds on QuickNote changes.
+    final layout = ref.watch(settingsProvider.select((s) => s.dashboardLayout)) 
+                   ?? DashboardWidgetIds.defaultLayout.map((id) => DashboardWidgetConfig(id: id)).toList();
+    
+    final welcomeTitle = ref.watch(settingsProvider.select((s) => s.dashboardWelcomeTitle));
+    final welcomeSubtitle = ref.watch(settingsProvider.select((s) => s.dashboardWelcomeSubtitle));
+
+    ref.watch(dashboardStatsProvider); 
 
     return Padding(
       padding: const EdgeInsets.all(32.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with Month Selector
+          // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    settings.dashboardWelcomeTitle,
-                    style: Theme.of(context).textTheme.displayMedium,
-                  ),
+                  Text(welcomeTitle, style: Theme.of(context).textTheme.displayMedium),
                   const SizedBox(height: 8),
-                  Text(
-                    settings.dashboardWelcomeSubtitle,
-                    style: Theme.of(context).textTheme.bodyLarge,
-                  ),
+                  Text(welcomeSubtitle, style: Theme.of(context).textTheme.bodyLarge),
                 ],
               ),
-              // Month Selector from Finance Module
-              const MonthSelector(), 
+              const MonthSelector(),
             ],
           ),
           const SizedBox(height: 32),
-          
-          statsAsync.when(
-            data: (stats) {
-              final settings = ref.watch(settingsProvider);
-              return Expanded(
-                child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // KPI Cards Grid
-                      SizedBox(
-                        height: 180, // Fixed height for cards row
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: _BentoCard(
-                                title: 'Ingresos Reales',
-                                value: '\$${stats.totalIncome.toStringAsFixed(2)}',
-                                subtitle: 'Cobrado este mes',
-                                icon: Icons.attach_money,
-                                color: Colors.green, // Visual distinction
-                                isDark: false,
-                                onTap: () => _navigateTo(5), // Navigate to Finance
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _BentoCard(
-                                title: 'Gastos del Mes',
-                                value: '\$${stats.totalExpenses.toStringAsFixed(2)}',
-                                subtitle: 'Total egresos',
-                                icon: Icons.money_off,
-                                color: Colors.redAccent,
-                                isDark: false,
-                                onTap: () => _navigateTo(5), // Navigate to Finance
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _BentoCard(
-                                title: 'Utilidad Neta',
-                                value: '\$${stats.netProfit.toStringAsFixed(2)}',
-                                subtitle: 'Ingresos - Gastos',
-                                icon: Icons.trending_up,
-                                // Dynamic Color Logic: Green if > 0, Red if < 0, Grey if 0
-                                color: stats.netProfit > 0 
-                                    ? Colors.green 
-                                    : (stats.netProfit < 0 ? Colors.red : Colors.grey), 
-                                isDark: true,
-                                onTap: () => _navigateTo(5), // Navigate to Finance
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _BentoCard(
-                                title: 'Por Cobrar',
-                                value: '\$${stats.accountsReceivable.toStringAsFixed(2)}',
-                                subtitle: 'Saldo pendiente global',
-                                icon: Icons.account_balance_wallet_outlined,
-                                color: Colors.orange,
-                                isDark: false,
-                                onTap: () => _navigateTo(1), // Navigate to Orders
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _BentoCard(
-                                title: 'Por Entregar',
-                                value: '${stats.pendingDeliveriesCount}',
-                                subtitle: stats.urgentOrdersCount > 0 
-                                    ? '${stats.urgentOrdersCount} Urgentes 🚨' 
-                                    : 'Pedidos pendientes',
-                                icon: Icons.local_shipping_outlined,
-                                color: stats.urgentOrdersCount > 0 ? Colors.redAccent : Colors.blueGrey,
-                                isDark: stats.urgentOrdersCount > 0, // Make text white if red
-                                onTap: () => _navigateTo(1), // Navigate to Orders
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      
-                      // Bottom Sections: Next Deliveries & Top Products
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Next Deliveries
-                          Expanded(
-                            flex: 3,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  settings.dashboardTitles['orders'] ?? 'Próximas Entregas', 
-                                  style: Theme.of(context).textTheme.headlineSmall
-                                ),
-                                const SizedBox(height: 16),
-                                if (stats.nextDeliveries.isEmpty)
-                                  _buildEmptyState('No hay entregas pendientes')
-                                else
-                                  ...stats.nextDeliveries.map((order) => Card(
-                                    elevation: 2,
-                                    margin: const EdgeInsets.only(bottom: 12),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                    child: ListTile(
-                                      leading: CircleAvatar(
-                                        backgroundColor: AppTheme.secondaryColor.withOpacity(0.2),
-                                        child: const Icon(Icons.inventory_2_outlined, color: AppTheme.secondaryColor),
-                                      ),
-                                      title: Text(order.customerName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                      subtitle: Text(
-                                        'Entrega: ${DateFormat('dd/MM/yyyy').format(order.deliveryDate)}\n${order.items.length} productos',
-                                      ),
-                                      trailing: Chip(
-                                        label: Text(_translateStatus(order.deliveryStatus)),
-                                        backgroundColor: Colors.orange.withOpacity(0.1),
-                                        labelStyle: const TextStyle(color: Colors.orange),
-                                      ),
-                                    ),
-                                  )),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 32),
-                          
-                          // Top Products
-                          Expanded(
-                            flex: 2,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  settings.dashboardTitles['metrics'] ?? 'Top Productos (Mes)', 
-                                  style: Theme.of(context).textTheme.headlineSmall
-                                ),
-                                const SizedBox(height: 16),
-                                if (stats.topProducts.isEmpty)
-                                  _buildEmptyState('No hay ventas este mes')
-                                else
-                                  Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).cardColor,
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
-                                      ],
-                                    ),
-                                    child: Column(
-                                      children: stats.topProducts.map((entry) => Padding(
-                                        padding: const EdgeInsets.only(bottom: 12),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              padding: const EdgeInsets.all(8),
-                                              decoration: BoxDecoration(
-                                                color: AppTheme.primaryColor.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(8),
-                                              ),
-                                              child: Text(
-                                                '${entry.value}',
-                                                style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
-                                              ),
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w500)),
-                                            ),
-                                          ],
-                                        ),
-                                      )).toList(),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+
+          // Dynamic Layout
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                
+                // --- PHASE 19.4: HEADER FIX & 4-COLUMN GRID ---
+                // User requested 4 columns base instead of 5.
+                int cols = 4; 
+                
+                // Responsive adjustments
+                if (width < 600) cols = 2;
+                else if (width < 900) cols = 3;
+                // else if (width < 1100) cols = 3; // Maybe keep 3 longer? 
+                // > 900 -> 4 columns is standard desktop.
+                
+                final spacing = 16.0;
+                final unitWidth = (width - ((cols - 1) * spacing)) / cols;
+                
+                return SingleChildScrollView(
+                  child: Wrap(
+                    spacing: spacing,
+                    runSpacing: spacing,
+                    children: layout.map((config) => _buildTargetWidget(config, context, unitWidth, cols, spacing)).toList(),
                   ),
-                ),
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => Center(child: Text('Error cargando dashboard: $err', style: const TextStyle(color: Colors.red))),
+                );
+              }
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildEmptyState(String message) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Colors.grey[50]?.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[200]!.withOpacity(0.2)),
+  Widget _buildTargetWidget(DashboardWidgetConfig config, BuildContext context, double unitWidth, int totalCols, double spacing) {
+    // Calculate effective width based on span
+    final effectiveSpan = config.widthSpan > totalCols ? totalCols : config.widthSpan;
+    final width = (unitWidth * effectiveSpan) + ((effectiveSpan - 1) * spacing);
+    
+    // Height logic 
+    const double baseHeight = 140.0;
+    final height = (baseHeight * config.heightSpan) + ((config.heightSpan - 1) * spacing);
+    
+    final widgetContent = AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+      width: width,
+      height: height,
+      child: DashboardWidgetRegistry.build(
+        config.id, 
+        context, 
+        isDragging: false, 
+        onRemove: () => _removeWidget(config.id),
+        onResize: () => _resizeWidgetWidth(config), // Width Resize
+        onResizeHeight: _canResizeHeight(config.id) ? () => _resizeWidgetHeight(config) : null, // Height Resize
       ),
-      child: Text(message, style: TextStyle(color: Colors.grey[500])),
+    );
+
+    // Target for DROPPING reordering
+    return DragTarget<String>(
+      onWillAccept: (incomingId) => incomingId != null && incomingId != config.id,
+      onAccept: (incomingId) => _reorderWidget(incomingId, config.id),
+      builder: (context, candidateData, rejectedData) {
+         return widgetContent;
+      },
     );
   }
 
-  String _translateStatus(String status) {
-    const statusMap = {
-      'pending': 'Pendiente',
-      'delivered': 'Entregado',
-      'cancelled': 'Cancelado',
-      'Pending': 'Pendiente',
-      'Delivered': 'Entregado',
-      'Cancelled': 'Cancelado',
-    };
-    return statusMap[status] ?? status;
+  bool _canResizeHeight(String id) {
+    // Restrictions: Financial cards (Income, Expenses, etc.) are fixed height x1.
+    // Lists and Charts can be resized.
+    if (id == DashboardWidgetIds.income || 
+        id == DashboardWidgetIds.expenses || 
+        id == DashboardWidgetIds.netProfit || 
+        id == DashboardWidgetIds.accountsReceivable ||
+        id == DashboardWidgetIds.pendingDeliveries ||
+        id == DashboardWidgetIds.clock) {
+      return false;
+    }
+    return true; // Trend, Top Products, Next Deliveries, Quick Note, etc.
+  }
+
+  void _resizeWidgetWidth(DashboardWidgetConfig config) {
+    // 1 -> 2 -> [3/4] -> 1
+    int maxSpan = 4; // Max columns is usually 4
+    
+    int newSpan = config.widthSpan + 1;
+    if (newSpan > maxSpan) newSpan = 1;
+    
+    final settingsNotifier = ref.read(settingsProvider.notifier);
+    final currentLayout = List<DashboardWidgetConfig>.from(ref.read(settingsProvider).dashboardLayout ?? []);
+    
+    final index = currentLayout.indexWhere((c) => c.id == config.id);
+    if (index != -1) {
+      currentLayout[index] = config.copyWith(widthSpan: newSpan);
+      settingsNotifier.updateDashboardLayout(currentLayout);
+    }
+  }
+
+  void _resizeWidgetHeight(DashboardWidgetConfig config) {
+    // 1 -> 2 -> 3 -> 1
+    int maxSpan = 3;
+    
+    int newSpan = config.heightSpan + 1;
+    if (newSpan > maxSpan) newSpan = 1;
+    
+    final settingsNotifier = ref.read(settingsProvider.notifier);
+    final currentLayout = List<DashboardWidgetConfig>.from(ref.read(settingsProvider).dashboardLayout ?? []);
+    
+    final index = currentLayout.indexWhere((c) => c.id == config.id);
+    if (index != -1) {
+      currentLayout[index] = config.copyWith(heightSpan: newSpan);
+      settingsNotifier.updateDashboardLayout(currentLayout);
+    }
+  }
+
+  void _removeWidget(String id) {
+    final settingsNotifier = ref.read(settingsProvider.notifier);
+    final currentLayout = List<DashboardWidgetConfig>.from(ref.read(settingsProvider).dashboardLayout ?? []);
+    currentLayout.removeWhere((c) => c.id == id);
+    settingsNotifier.updateDashboardLayout(currentLayout);
+  }
+
+  void _addWidget(String id) {
+    final settingsNotifier = ref.read(settingsProvider.notifier);
+    final currentLayout = List<DashboardWidgetConfig>.from(ref.read(settingsProvider).dashboardLayout ?? []);
+    if (!currentLayout.any((c) => c.id == id)) {
+      currentLayout.add(DashboardWidgetConfig(id: id));
+      settingsNotifier.updateDashboardLayout(currentLayout);
+    }
+  }
+
+  void _reorderWidget(String incomingId, String targetId) {
+    final settingsNotifier = ref.read(settingsProvider.notifier);
+    final currentLayout = List<DashboardWidgetConfig>.from(ref.read(settingsProvider).dashboardLayout ?? []);
+    
+    final oldIndex = currentLayout.indexWhere((c) => c.id == incomingId);
+    final newIndex = currentLayout.indexWhere((c) => c.id == targetId);
+    
+    if (oldIndex != -1 && newIndex != -1) {
+      final item = currentLayout.removeAt(oldIndex);
+      currentLayout.insert(newIndex, item);
+      settingsNotifier.updateDashboardLayout(currentLayout);
+    }
+  }
+
+  void _showAddWidgetSheet() {
+    final layout = ref.read(settingsProvider).dashboardLayout ?? [];
+    // Convert to List<String> for the sheet
+    final currentIds = layout.map((c) => c.id).toList();
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => AddWidgetSheet(
+        currentLayout: currentIds,
+        onAdd: _addWidget,
+      ),
+    );
   }
 }
 
@@ -477,97 +419,6 @@ class _SidebarItem extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BentoCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final bool isDark;
-  final VoidCallback? onTap;
-
-  const _BentoCard({
-    required this.title,
-    required this.value,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.isDark,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: Container(
-            decoration: BoxDecoration(
-              color: isDark ? color : Theme.of(context).cardTheme.color,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Icon(
-                      icon,
-                      color: isDark ? Colors.white : color,
-                      size: 28,
-                    ),
-                    if (onTap != null)
-                      Icon(
-                        Icons.arrow_forward,
-                        color: isDark ? Colors.white.withOpacity(0.7) : Theme.of(context).iconTheme.color?.withOpacity(0.3),
-                        size: 20,
-                      ),
-                  ],
-                ),
-                const Spacer(),
-                Text(
-                  value,
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        color: isDark ? Colors.white : Theme.of(context).textTheme.displaySmall?.color,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 28, // Slightly adjusted for fit
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: isDark ? Colors.white.withOpacity(0.9) : Theme.of(context).textTheme.bodyMedium?.color,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: isDark ? Colors.white.withOpacity(0.7) : Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
         ),
       ),
     );

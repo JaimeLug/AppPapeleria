@@ -13,6 +13,7 @@ class MonthSelector extends ConsumerWidget {
     final selectedDate = ref.watch(selectedDateProvider);
     final now = DateTime.now();
     final isCurrentMonth = selectedDate.year == now.year && selectedDate.month == now.month;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     // Helper to capitalize first letter
     String capitalize(String s) => s[0].toUpperCase() + s.substring(1);
@@ -22,7 +23,7 @@ class MonthSelector extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isDarkMode ? const Color(0xFF2C2C2C) : Colors.white,
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
@@ -36,7 +37,7 @@ class MonthSelector extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            icon: const Icon(Icons.chevron_left),
+            icon: Icon(Icons.chevron_left, color: isDarkMode ? Colors.white : Colors.black),
             onPressed: () {
               // Subtract one month safely
               final prevMonth = DateTime(selectedDate.year, selectedDate.month - 1);
@@ -50,19 +51,19 @@ class MonthSelector extends ConsumerWidget {
             style: GoogleFonts.quicksand(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: AppTheme.titleColor,
+              color: isDarkMode ? Colors.white : AppTheme.titleColor,
             ),
           ),
           const SizedBox(width: 12),
           IconButton(
-            icon: const Icon(Icons.chevron_right),
+            icon: Icon(Icons.chevron_right, color: isDarkMode ? Colors.white : Colors.black),
             onPressed: isCurrentMonth
                 ? null // Disable if current month (future not allowed for now)
                 : () {
                     final nextMonth = DateTime(selectedDate.year, selectedDate.month + 1);
                     ref.read(selectedDateProvider.notifier).state = nextMonth;
                   },
-            color: isCurrentMonth ? Colors.grey[300] : null,
+            color: isCurrentMonth ? (isDarkMode ? Colors.grey[700] : Colors.grey[300]) : (isDarkMode ? Colors.white : Colors.black),
             tooltip: 'Mes siguiente',
           ),
         ],

@@ -40,7 +40,7 @@ class TransactionListTile extends ConsumerWidget {
         ),
         title: Text(
           transaction.description,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
           '${DateFormat('dd MMM yyyy').format(transaction.date)} • ${transaction.category}',

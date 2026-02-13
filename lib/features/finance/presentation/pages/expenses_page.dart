@@ -21,7 +21,7 @@ class ExpensesPage extends ConsumerWidget {
     final activeFilter = ref.watch(financeFilterProvider);
     
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+
       floatingActionButton: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -66,7 +66,7 @@ class ExpensesPage extends ConsumerWidget {
                   style: GoogleFonts.quicksand(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.titleColor,
+                    color: Theme.of(context).textTheme.displayLarge?.color,
                   ),
                 ),
                 const MonthSelector(),
@@ -114,7 +114,7 @@ class ExpensesPage extends ConsumerWidget {
                     child: FinanceSummaryCard(
                       title: 'Utilidad',
                       amount: balance['profit']!,
-                      color: AppTheme.titleColor,
+                      color: Colors.blueGrey,
                       icon: Icons.account_balance_wallet,
                     ),
                   ),
@@ -133,7 +133,7 @@ class ExpensesPage extends ConsumerWidget {
                   style: GoogleFonts.quicksand(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.titleColor,
+                    color: Theme.of(context).textTheme.titleLarge?.color,
                   ),
                 ),
                 if (activeFilter != null) ...[

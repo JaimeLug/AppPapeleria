@@ -42,7 +42,7 @@ class OrderModel extends OrderEntity {
     required this.deliveryDate,
     required this.isSynced,
     this.saleDate,
-    this.status = 'Diseño',
+    this.status = 'Pendiente',
     this.paymentStatus = 'pending',
     this.deliveryStatus = 'pending',
     this.googleEventId,
@@ -91,7 +91,7 @@ class OrderModel extends OrderEntity {
       saleDate: map['saleDate'] != null 
           ? DateTime.fromMillisecondsSinceEpoch(map['saleDate']) 
           : null,
-      status: map['status'] ?? 'Diseño',
+      status: map['status'] ?? 'Pendiente',
       paymentStatus: map['paymentStatus'] ?? 'pending',
       deliveryStatus: map['deliveryStatus'] ?? 'pending',
       googleEventId: map['googleEventId'],
@@ -125,7 +125,7 @@ class OrderModel extends OrderEntity {
       deliveryDate: DateTime.tryParse(json['Fecha Entrega'] ?? '') ?? DateTime.now(),
       isSynced: true,
       saleDate: DateTime.tryParse(json['Fecha Venta'] ?? ''),
-      status: json['Estado'] ?? 'Diseño',
+      status: json['Estado'] ?? 'Pendiente',
       paymentStatus: 'pending', 
       deliveryStatus: 'pending',
       googleEventId: null,

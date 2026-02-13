@@ -5,6 +5,7 @@ import 'package:googleapis_auth/auth_io.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
+import '../exceptions/auth_exception.dart';
 
 // Feature imports with correct paths
 import '../../features/sales/domain/entities/order.dart';
@@ -142,6 +143,15 @@ class GoogleCloudService {
       await sheetsApi.spreadsheets.values.clear(sheets.ClearValuesRequest(), spreadsheetId, '$sheetName!A2:Z1000');
       print('Hoja $sheetName limpiada');
     } catch (e) {
+      if (_isAuthError(e)) {
+        print('Auth error detected in clearSheet: $e');
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
+      }
+      if (_isMissingSheetError(e)) {
+        print('Hoja $sheetName no existe, omitiendo limpieza');
+        return; // Not an error - sheet doesn't exist yet
+      }
       print('Error limpiando hoja $sheetName: $e');
     }
   }
@@ -154,6 +164,15 @@ class GoogleCloudService {
       if (res.values == null) return {};
       return res.values!.map((row) => row[0].toString()).toSet();
     } catch (e) {
+      if (_isAuthError(e)) {
+        print('Auth error detected in _getExistingIds: $e');
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
+      }
+      if (_isMissingSheetError(e)) {
+        print('Hoja $sheetName no encontrada, asumiendo vacía');
+        return {}; // Sheet doesn't exist - return empty set
+      }
       print('Error obteniendo IDs de $sheetName: $e');
       return {};
     }
@@ -308,7 +327,15 @@ class GoogleCloudService {
 
       final valueRange = sheets.ValueRange(values: rows);
       await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
-    } catch (e) { print('Error exportación masiva pedidos: $e'); rethrow; }
+    } catch (e) {
+      if (_isAuthError(e)) {
+        print('Auth error detected in bulkExportOrders: $e');
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
+      }
+      print('Error exportación masiva pedidos: $e');
+      rethrow;
+    }
   }
 
   Future<void> bulkExportExpenses(String spreadsheetId, List<ExpenseModel> expenses, {bool overwrite = false}) async {
@@ -335,7 +362,15 @@ class GoogleCloudService {
       ]).toList();
       final valueRange = sheets.ValueRange(values: rows);
       await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
-    } catch (e) { print('Error exportación masiva gastos: $e'); rethrow; }
+    } catch (e) {
+      if (_isAuthError(e)) {
+        print('Auth error detected in bulkExportExpenses: $e');
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
+      }
+      print('Error exportación masiva gastos: $e');
+      rethrow;
+    }
   }
 
   Future<void> bulkExportIncomes(String spreadsheetId, List<IncomeModel> incomes, {bool overwrite = false}) async {
@@ -362,7 +397,15 @@ class GoogleCloudService {
       ]).toList();
       final valueRange = sheets.ValueRange(values: rows);
       await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
-    } catch (e) { print('Error exportación masiva ingresos: $e'); rethrow; }
+    } catch (e) {
+      if (_isAuthError(e)) {
+        print('Auth error detected in bulkExportIncomes: $e');
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
+      }
+      print('Error exportación masiva ingresos: $e');
+      rethrow;
+    }
   }
 
   Future<void> bulkExportCustomers(String spreadsheetId, List<CustomerEntity> customers, {bool overwrite = false}) async {
@@ -383,7 +426,15 @@ class GoogleCloudService {
       final rows = newCustomers.map((c) => [c.id, c.name, c.phone]).toList();
       final valueRange = sheets.ValueRange(values: rows);
       await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
-    } catch (e) { print('Error exportación masiva clientes: $e'); rethrow; }
+    } catch (e) {
+      if (_isAuthError(e)) {
+        print('Auth error detected in bulkExportCustomers: $e');
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
+      }
+      print('Error exportación masiva clientes: $e');
+      rethrow;
+    }
   }
 
   Future<void> bulkExportProducts(String spreadsheetId, List<ProductEntity> products, {bool overwrite = false}) async {
@@ -404,7 +455,15 @@ class GoogleCloudService {
       final rows = newProducts.map((p) => [p.id, p.name, p.basePrice, p.extraCost, p.category, p.notes ?? '']).toList();
       final valueRange = sheets.ValueRange(values: rows);
       await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
-    } catch (e) { print('Error exportación masiva productos: $e'); rethrow; }
+    } catch (e) {
+      if (_isAuthError(e)) {
+        print('Auth error detected in bulkExportProducts: $e');
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
+      }
+      print('Error exportación masiva productos: $e');
+      rethrow;
+    }
   }
 
   Future<void> bulkExportCategories(String spreadsheetId, List<String> categories, {bool overwrite = false}) async {
@@ -426,7 +485,15 @@ class GoogleCloudService {
       final rows = newCategories.map((cat) => [cat, cat]).toList();
       final valueRange = sheets.ValueRange(values: rows);
       await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
-    } catch (e) { print('Error exportación masiva categorías: $e'); rethrow; }
+    } catch (e) {
+      if (_isAuthError(e)) {
+        print('Auth error detected in bulkExportCategories: $e');
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
+      }
+      print('Error exportación masiva categorías: $e');
+      rethrow;
+    }
   }
 
   // --- Sheets Import Method ---
@@ -455,7 +522,16 @@ class GoogleCloudService {
             }
           }
         }
-      } catch (e) { print('Error importando clientes: $e'); }
+      } catch (e) {
+        if (_isAuthError(e)) {
+          rethrow; // Re-throw auth errors immediately
+        }
+        if (_isMissingSheetError(e)) {
+          print('Hoja Clientes no encontrada, omitiendo importación');
+        } else {
+          print('Error importando clientes: $e');
+        }
+      }
 
       // 2. Productos
       try {
@@ -480,7 +556,16 @@ class GoogleCloudService {
             }
           }
         }
-      } catch (e) { print('Error importando productos: $e'); }
+      } catch (e) {
+        if (_isAuthError(e)) {
+          rethrow; // Re-throw auth errors immediately
+        }
+        if (_isMissingSheetError(e)) {
+          print('Hoja Productos no encontrada, omitiendo importación');
+        } else {
+          print('Error importando productos: $e');
+        }
+      }
 
       // 3. Gastos
       try {
@@ -504,7 +589,16 @@ class GoogleCloudService {
             }
           }
         }
-      } catch (e) { print('Error importando gastos: $e'); }
+      } catch (e) {
+        if (_isAuthError(e)) {
+          rethrow; // Re-throw auth errors immediately
+        }
+        if (_isMissingSheetError(e)) {
+          print('Hoja Gastos no encontrada, omitiendo importación');
+        } else {
+          print('Error importando gastos: $e');
+        }
+      }
 
       // 4. Ingresos
       try {
@@ -528,7 +622,16 @@ class GoogleCloudService {
             }
           }
         }
-      } catch (e) { print('Error importando ingresos: $e'); }
+      } catch (e) {
+        if (_isAuthError(e)) {
+          rethrow; // Re-throw auth errors immediately
+        }
+        if (_isMissingSheetError(e)) {
+          print('Hoja Ingresos no encontrada, omitiendo importación');
+        } else {
+          print('Error importando ingresos: $e');
+        }
+      }
 
       // 5. Categorías
       try {
@@ -554,7 +657,16 @@ class GoogleCloudService {
             await settingsBox.put('appSettings', settingsMap);
           }
         }
-      } catch (e) { print('Error importando categorías: $e'); }
+      } catch (e) {
+        if (_isAuthError(e)) {
+          rethrow; // Re-throw auth errors immediately
+        }
+        if (_isMissingSheetError(e)) {
+          print('Hoja Categorías no encontrada, omitiendo importación');
+        } else {
+          print('Error importando categorías: $e');
+        }
+      }
 
       // 6. Pedidos
       try {
@@ -582,9 +694,27 @@ class GoogleCloudService {
             }
           }
         }
-      } catch (e) { print('Error importando pedidos: $e'); }
+      } catch (e) {
+        if (_isAuthError(e)) {
+          rethrow; // Re-throw auth errors immediately
+        }
+        if (_isMissingSheetError(e)) {
+          print('Hoja Pedidos no encontrada, omitiendo importación');
+        } else {
+          print('Error importando pedidos: $e');
+        }
+      }
+      
       print('Importación desde Sheets completada');
-    } catch (e) { print('Error en importación general: $e'); rethrow; }
+    } catch (e) {
+      if (_isAuthError(e)) {
+        print('Auth error detected in importFromSheets: $e');
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
+      }
+      print('Error en importación general: $e');
+      rethrow;
+    }
   }
 
   // --- Calendar Methods ---
@@ -671,5 +801,22 @@ class GoogleCloudService {
         await sheetsApi.spreadsheets.values.update(headerRow, spreadsheetId, '$sheetName!A1', valueInputOption: 'USER_ENTERED');
       }
     } catch (e) { print('Error asegurando hoja $sheetName: $e'); }
+  }
+
+  /// Helper method to detect authentication errors
+  bool _isAuthError(dynamic error) {
+    final errorStr = error.toString().toLowerCase();
+    return errorStr.contains('401') || 
+           errorStr.contains('invalid_token') || 
+           errorStr.contains('access was denied') ||
+           errorStr.contains('unauthorized');
+  }
+
+  /// Helper method to detect missing sheet errors (400 - Unable to parse range)
+  bool _isMissingSheetError(dynamic error) {
+    final errorStr = error.toString().toLowerCase();
+    return errorStr.contains('400') && 
+           (errorStr.contains('unable to parse range') || 
+            errorStr.contains('unable to parse'));
   }
 }

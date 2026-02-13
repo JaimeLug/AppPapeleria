@@ -14,6 +14,9 @@ import '../../../../features/finance/data/models/expense_model.dart';
 import '../../../../features/finance/data/models/income_model.dart';
 
 // --- State Model ---
+import '../../../../features/dashboard/domain/models/dashboard_widget_config.dart';
+
+// --- State Model ---
 class AppSettings {
   final String businessName;
   final String businessAddress;
@@ -36,6 +39,11 @@ class AppSettings {
   final bool syncCalendarEnabled;
   final Map<String, String> dashboardTitles;
   final List<String> productCategories;
+  
+  // Phase 19.2: Changed from List<String> to List<DashboardWidgetConfig>
+  final List<DashboardWidgetConfig>? dashboardLayout;
+  
+  final String quickNoteContent;
 
   const AppSettings({
     this.businessName = 'Corateca.',
@@ -50,16 +58,18 @@ class AppSettings {
     this.dashboardWelcomeSubtitle = 'Resumen de tu papelería creativa',
     this.googleClientId,
     this.googleClientSecret,
-     this.googleSheetId = '1nDpb3WlAhD-XtIvx_CPuM87UlDntvhY1NxCr_XapM8w',
-     this.syncSheetsEnabled = false,
-     this.syncCalendarEnabled = false,
-     this.dashboardTitles = const {
-       'orders': 'Próximas Entregas',
-       'metrics': 'Resumen del Negocio',
-       'summary': 'Estado de Pedidos',
-     },
-     this.productCategories = const [],
-   });
+    this.googleSheetId = '1nDpb3WlAhD-XtIvx_CPuM87UlDntvhY1NxCr_XapM8w',
+    this.syncSheetsEnabled = false,
+    this.syncCalendarEnabled = false,
+    this.dashboardTitles = const {
+      'orders': 'Próximas Entregas',
+      'metrics': 'Resumen del Negocio',
+      'summary': 'Estado de Pedidos',
+    },
+    this.productCategories = const [],
+    this.dashboardLayout,
+    this.quickNoteContent = '',
+  });
 
   AppSettings copyWith({
     String? businessName,
@@ -75,11 +85,13 @@ class AppSettings {
     String? googleClientId,
     String? googleClientSecret,
     String? googleSheetId,
-     bool? syncSheetsEnabled,
-     bool? syncCalendarEnabled,
-     Map<String, String>? dashboardTitles,
-     List<String>? productCategories,
-   }) {
+    bool? syncSheetsEnabled,
+    bool? syncCalendarEnabled,
+    Map<String, String>? dashboardTitles,
+    List<String>? productCategories,
+    List<DashboardWidgetConfig>? dashboardLayout,
+    String? quickNoteContent,
+  }) {
     return AppSettings(
       businessName: businessName ?? this.businessName,
       businessAddress: businessAddress ?? this.businessAddress,
@@ -94,11 +106,13 @@ class AppSettings {
       googleClientId: googleClientId ?? this.googleClientId,
       googleClientSecret: googleClientSecret ?? this.googleClientSecret,
       googleSheetId: googleSheetId ?? this.googleSheetId,
-       syncSheetsEnabled: syncSheetsEnabled ?? this.syncSheetsEnabled,
-       syncCalendarEnabled: syncCalendarEnabled ?? this.syncCalendarEnabled,
-       dashboardTitles: dashboardTitles ?? this.dashboardTitles,
-       productCategories: productCategories ?? this.productCategories,
-     );
+      syncSheetsEnabled: syncSheetsEnabled ?? this.syncSheetsEnabled,
+      syncCalendarEnabled: syncCalendarEnabled ?? this.syncCalendarEnabled,
+      dashboardTitles: dashboardTitles ?? this.dashboardTitles,
+      productCategories: productCategories ?? this.productCategories,
+      dashboardLayout: dashboardLayout ?? this.dashboardLayout,
+      quickNoteContent: quickNoteContent ?? this.quickNoteContent,
+    );
   }
 
   Map<String, dynamic> toMap() {
@@ -116,14 +130,33 @@ class AppSettings {
       'googleClientId': googleClientId,
       'googleClientSecret': googleClientSecret,
       'googleSheetId': googleSheetId,
-       'syncSheetsEnabled': syncSheetsEnabled,
-       'syncCalendarEnabled': syncCalendarEnabled,
-       'dashboardTitles': dashboardTitles,
-       'productCategories': productCategories,
-     };
+      'syncSheetsEnabled': syncSheetsEnabled,
+      'syncCalendarEnabled': syncCalendarEnabled,
+      'dashboardTitles': dashboardTitles,
+      'productCategories': productCategories,
+      'dashboardLayout': dashboardLayout?.map((e) => e.toMap()).toList(),
+      'quickNoteContent': quickNoteContent,
+    };
   }
 
   factory AppSettings.fromMap(Map<String, dynamic> map) {
+    // Migration Logic
+    List<DashboardWidgetConfig>? layout;
+    if (map['dashboardLayout'] != null) {
+      final rawLayout = map['dashboardLayout'] as List;
+      if (rawLayout.isNotEmpty) {
+        if (rawLayout.first is String) {
+          // Migration: Convert List<String> to List<DashboardWidgetConfig>
+          layout = rawLayout.map((id) => DashboardWidgetConfig(id: id as String)).toList();
+        } else {
+          // Standard: List<Map>
+          layout = rawLayout.map((e) => DashboardWidgetConfig.fromMap(Map<String, dynamic>.from(e))).toList();
+        }
+      } else {
+        layout = [];
+      }
+    }
+
     return AppSettings(
       businessName: map['businessName'] ?? 'Corateca.',
       businessAddress: map['businessAddress'] ?? '',
@@ -138,15 +171,17 @@ class AppSettings {
       googleClientId: map['googleClientId'],
       googleClientSecret: map['googleClientSecret'],
       googleSheetId: map['googleSheetId'] ?? '1nDpb3WlAhD-XtIvx_CPuM87UlDntvhY1NxCr_XapM8w',
-       syncSheetsEnabled: map['syncSheetsEnabled'] ?? false,
-       syncCalendarEnabled: map['syncCalendarEnabled'] ?? false,
-       dashboardTitles: map['dashboardTitles'] != null ? Map<String, String>.from(map['dashboardTitles']) : const {
-         'orders': 'Próximas Entregas',
-         'metrics': 'Resumen del Negocio',
-         'summary': 'Estado de Pedidos',
-       },
-       productCategories: map['productCategories'] != null ? List<String>.from(map['productCategories']) : const [],
-     );
+      syncSheetsEnabled: map['syncSheetsEnabled'] ?? false,
+      syncCalendarEnabled: map['syncCalendarEnabled'] ?? false,
+      dashboardTitles: map['dashboardTitles'] != null ? Map<String, String>.from(map['dashboardTitles']) : const {
+        'orders': 'Próximas Entregas',
+        'metrics': 'Resumen del Negocio',
+        'summary': 'Estado de Pedidos',
+      },
+      productCategories: map['productCategories'] != null ? List<String>.from(map['productCategories']) : const [],
+      dashboardLayout: layout,
+      quickNoteContent: map['quickNoteContent'] ?? '',
+    );
   }
 }
 
@@ -205,7 +240,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   
   void removeSecurityPin(String currentPin) {
     if (state.securityPin == currentPin) {
-      state = state.copyWith(securityPin: null); // Simplify logic, just nulled
+      state = state.copyWith(securityPin: null);
       _saveSettings();
     } else {
       throw Exception('PIN incorrecto');
@@ -227,23 +262,33 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       syncSheetsEnabled: syncSheets,
       syncCalendarEnabled: syncCalendar,
     );
-     _saveSettings();
-   }
+    _saveSettings();
+  }
  
-   void updateDashboardTitles(Map<String, String> titles) {
-     state = state.copyWith(dashboardTitles: titles);
-     _saveSettings();
-   }
- 
-   void updateDashboardWelcome({String? title, String? subtitle}) {
-     state = state.copyWith(
-       dashboardWelcomeTitle: title,
-       dashboardWelcomeSubtitle: subtitle,
-     );
-     _saveSettings();
-   }
- 
-   // --- Developer Tools ---
+  void updateDashboardTitles(Map<String, String> titles) {
+    state = state.copyWith(dashboardTitles: titles);
+    _saveSettings();
+  }
+
+  void updateDashboardWelcome({String? title, String? subtitle}) {
+    state = state.copyWith(
+      dashboardWelcomeTitle: title,
+      dashboardWelcomeSubtitle: subtitle,
+    );
+    _saveSettings();
+  }
+
+  void updateDashboardLayout(List<DashboardWidgetConfig> layout) {
+    state = state.copyWith(dashboardLayout: layout);
+    _saveSettings();
+  }
+
+  void updateQuickNote(String content) {
+    state = state.copyWith(quickNoteContent: content);
+    _saveSettings();
+  }
+
+  // --- Developer Tools ---
 
   Future<void> exportBackup() async {
     try {

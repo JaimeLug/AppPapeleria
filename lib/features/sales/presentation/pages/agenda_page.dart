@@ -19,6 +19,9 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
   late DateTime _focusedDay;
   CalendarFormat _calendarFormat = CalendarFormat.month;
   Map<DateTime, List<OrderEntity>> _events = {};
+  
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -26,6 +29,12 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
     _selectedDay = DateTime.now();
     _focusedDay = DateTime.now();
     _loadOrders();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _loadOrders() {
@@ -66,13 +75,13 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+
       appBar: AppBar(
         title: const Text(
           'Agenda de Entregas',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 0,
       ),
       body: ValueListenableBuilder(
@@ -136,8 +145,10 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
   }
 
   Widget _buildCalendar() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
-      color: Colors.white,
+      color: isDarkMode ? Colors.transparent : Theme.of(context).cardColor,
       padding: const EdgeInsets.all(16),
       child: TableCalendar<OrderEntity>(
         locale: 'es_ES',
@@ -162,18 +173,23 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
           _focusedDay = focusedDay;
         },
         calendarStyle: CalendarStyle(
+          // Text Styles for Dark Mode
+          defaultTextStyle: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+          weekendTextStyle: TextStyle(color: isDarkMode ? Colors.white70 : Colors.black),
+          outsideTextStyle: TextStyle(color: isDarkMode ? Colors.grey[700] : Colors.grey),
+
           // Today
           todayDecoration: BoxDecoration(
-            color: AppTheme.primaryColor.withOpacity(0.3),
+            color: isDarkMode ? Colors.grey[800] : AppTheme.primaryColor.withOpacity(0.3),
             shape: BoxShape.circle,
           ),
-          todayTextStyle: const TextStyle(
-            color: Colors.black,
+          todayTextStyle: TextStyle(
+            color: isDarkMode ? Colors.white : Colors.black,
             fontWeight: FontWeight.bold,
           ),
           // Selected day
           selectedDecoration: BoxDecoration(
-            color: AppTheme.primaryColor,
+            color: isDarkMode ? Colors.grey[700] : AppTheme.primaryColor,
             shape: BoxShape.circle,
           ),
           selectedTextStyle: const TextStyle(
@@ -181,7 +197,7 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
             fontWeight: FontWeight.bold,
           ),
           // Markers
-          markerDecoration: BoxDecoration(
+          markerDecoration: const BoxDecoration(
             color: Colors.transparent,
             shape: BoxShape.circle,
           ),
@@ -199,7 +215,7 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
                 height: 7,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: hasPending ? Colors.red : Colors.green,
+                  color: hasPending ? (isDarkMode ? Colors.redAccent : Colors.red) : (isDarkMode ? Colors.greenAccent : Colors.green),
                 ),
               ),
             );
@@ -208,25 +224,28 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
         headerStyle: HeaderStyle(
           formatButtonVisible: false,
           titleCentered: true,
-          titleTextStyle: const TextStyle(
+          titleTextStyle: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: AppTheme.primaryColor,
+            color: isDarkMode ? Colors.white : AppTheme.primaryColor,
           ),
-          leftChevronIcon: const Icon(
+          leftChevronIcon: Icon(
             Icons.chevron_left,
-            color: AppTheme.primaryColor,
+            color: isDarkMode ? Colors.white : AppTheme.primaryColor,
           ),
-          rightChevronIcon: const Icon(
+          rightChevronIcon: Icon(
             Icons.chevron_right,
-            color: AppTheme.primaryColor,
+            color: isDarkMode ? Colors.white : AppTheme.primaryColor,
           ),
         ),
-        daysOfWeekStyle: const DaysOfWeekStyle(
-          weekdayStyle: TextStyle(fontWeight: FontWeight.bold),
+        daysOfWeekStyle: DaysOfWeekStyle(
+          weekdayStyle: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: isDarkMode ? Colors.grey[400] : Colors.black,
+          ),
           weekendStyle: TextStyle(
             fontWeight: FontWeight.bold,
-            color: AppTheme.primaryColor,
+            color: isDarkMode ? Colors.grey[400] : AppTheme.primaryColor,
           ),
         ),
       ),
@@ -234,10 +253,25 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
   }
 
   Widget _buildOrderList() {
-    final orders = _getEventsForDay(_selectedDay);
+    final allOrders = _getEventsForDay(_selectedDay);
+    
+    // Filter orders based on search query
+    final orders = allOrders.where((order) {
+      if (_searchQuery.isEmpty) return true;
+      
+      final clientName = order.customerName.toLowerCase();
+      final orderId = order.id.toLowerCase();
+      final productMatch = order.items.any((item) => 
+        item.productName.toLowerCase().contains(_searchQuery)
+      );
+      
+      return clientName.contains(_searchQuery) || 
+             orderId.contains(_searchQuery) ||
+             productMatch;
+    }).toList();
     
     return Container(
-      color: AppTheme.backgroundColor,
+      color: Theme.of(context).scaffoldBackgroundColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -265,6 +299,32 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
               ],
             ),
           ),
+          
+          // Search Field
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Buscar entrega...',
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                filled: true,
+                fillColor: Theme.of(context).inputDecorationTheme.fillColor,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                isDense: true,
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                });
+              },
+            ),
+          ),
+
           const Divider(height: 1),
           Expanded(
             child: orders.isEmpty
@@ -277,13 +337,16 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
                           size: 64,
                           color: Colors.grey[300],
                         ),
-                        const SizedBox(height: 16),
+                                    const SizedBox(height: 16),
                         Text(
-                          'No hay entregas programadas',
+                          _searchQuery.isEmpty 
+                              ? 'No hay entregas programadas'
+                              : 'No hay entregas para "$_searchQuery" este día',
                           style: TextStyle(
                             fontSize: 16,
                             color: Colors.grey[500],
                           ),
+                          textAlign: TextAlign.center,
                         ),
                       ],
                     ),
@@ -307,6 +370,7 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
     final hasDebt = order.pendingBalance > 0.01;
     
     return Card(
+      color: Theme.of(context).cardColor,
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
