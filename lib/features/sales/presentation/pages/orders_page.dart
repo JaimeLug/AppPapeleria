@@ -73,6 +73,33 @@ class _OrdersPageState extends State<OrdersPage> {
               Tab(text: 'Historial'),
             ],
           ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Consumer(
+                builder: (context, ref, child) {
+                  return IconButton(
+                    icon: const Icon(Icons.refresh, color: AppTheme.primaryColor),
+                    tooltip: 'Sincronizar ahora',
+                    onPressed: () async {
+                      final success = await ref.read(ordersProvider.notifier).syncOrders();
+                      if (context.mounted) {
+                         if (success) {
+                           ScaffoldMessenger.of(context).showSnackBar(
+                             const SnackBar(content: Text('Datos actualizados correctamente'), backgroundColor: Colors.green),
+                           );
+                         } else {
+                           ScaffoldMessenger.of(context).showSnackBar(
+                             const SnackBar(content: Text('No se pudo actualizar. Mostrando datos locales.'), backgroundColor: Colors.orange),
+                           );
+                         }
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
         body: ValueListenableBuilder(
           valueListenable: Hive.box<OrderModel>('orders').listenable(),
@@ -139,30 +166,46 @@ class _OrderList extends ConsumerWidget {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: filteredOrders.length,
-      itemBuilder: (context, index) {
-        final order = filteredOrders[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: OrderCard(
-            order: order,
-            onStatusChange: (newStatus) {
-              ref.read(ordersProvider.notifier).updateOrderStatus(order, newStatus);
-            },
-            onMarkDelivered: () {
-               ref.read(ordersProvider.notifier).markAsDelivered(order);
-            },
-            onLiquidateDebt: () {
-              ref.read(ordersProvider.notifier).liquidateDebt(order);
-            },
-            onAddPayment: (amount) {
-              ref.read(ordersProvider.notifier).addPayment(order, amount);
-            },
-          ),
-        );
+    return RefreshIndicator(
+      onRefresh: () async {
+        final success = await ref.read(ordersProvider.notifier).syncOrders();
+        if (context.mounted) {
+           if (success) {
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text('Datos actualizados correctamente'), backgroundColor: Colors.green),
+             );
+           } else {
+             ScaffoldMessenger.of(context).showSnackBar(
+               const SnackBar(content: Text('No se pudo actualizar. Mostrando datos locales.'), backgroundColor: Colors.orange),
+             );
+           }
+        }
       },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: filteredOrders.length,
+        itemBuilder: (context, index) {
+          final order = filteredOrders[index];
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: OrderCard(
+              order: order,
+              onStatusChange: (newStatus) {
+                ref.read(ordersProvider.notifier).updateOrderStatus(order, newStatus);
+              },
+              onMarkDelivered: () {
+                 ref.read(ordersProvider.notifier).markAsDelivered(order);
+              },
+              onLiquidateDebt: () {
+                ref.read(ordersProvider.notifier).liquidateDebt(order);
+              },
+              onAddPayment: (amount) {
+                ref.read(ordersProvider.notifier).addPayment(order, amount);
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 }

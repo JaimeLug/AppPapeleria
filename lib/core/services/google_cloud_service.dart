@@ -592,21 +592,18 @@ class GoogleCloudService {
           for (var row in res.values!) {
             if (row.length >= 2 && row[1].toString().trim().isNotEmpty) {
               final id = row[0].toString();
-              if (replaceLocal || !box.containsKey(id)) {
-                final c = CustomerModel(
-                  id: id.isNotEmpty ? id : const Uuid().v4(),
-                  name: row[1].toString(),
-                  phone: row.length > 2 ? row[2].toString() : '',
-                );
-                await box.put(c.id, c);
-              }
+              // UPSERT
+              final c = CustomerModel(
+                id: id.isNotEmpty ? id : const Uuid().v4(),
+                name: row[1].toString(),
+                phone: row.length > 2 ? row[2].toString() : '',
+              );
+              await box.put(c.id, c);
             }
           }
         }
       } catch (e) {
-        if (_isAuthError(e)) {
-          rethrow; // Re-throw auth errors immediately
-        }
+        if (_isAuthError(e)) rethrow;
         if (_isMissingSheetError(e)) {
           print('Hoja Clientes no encontrada, omitiendo importación');
         } else {
@@ -623,24 +620,21 @@ class GoogleCloudService {
           for (var row in res.values!) {
             if (row.length >= 2 && row[1].toString().trim().isNotEmpty) {
               final id = row[0].toString();
-              if (replaceLocal || !box.containsKey(id)) {
-                final p = ProductModel(
-                  id: id.isNotEmpty ? id : const Uuid().v4(),
-                  name: row[1].toString(),
-                  basePrice: double.tryParse(row[2].toString()) ?? 0.0,
-                  extraCost: double.tryParse(row[3].toString()) ?? 0.0,
-                  category: row.length > 4 ? row[4].toString() : 'Otros',
-                  notes: row.length > 5 ? row[5].toString() : null,
-                );
-                await box.put(p.id, p);
-              }
+              // UPSERT
+              final p = ProductModel(
+                id: id.isNotEmpty ? id : const Uuid().v4(),
+                name: row[1].toString(),
+                basePrice: double.tryParse(row[2].toString()) ?? 0.0,
+                extraCost: double.tryParse(row[3].toString()) ?? 0.0,
+                category: row.length > 4 ? row[4].toString() : 'Otros',
+                notes: row.length > 5 ? row[5].toString() : null,
+              );
+              await box.put(p.id, p);
             }
           }
         }
       } catch (e) {
-        if (_isAuthError(e)) {
-          rethrow; // Re-throw auth errors immediately
-        }
+        if (_isAuthError(e)) rethrow;
         if (_isMissingSheetError(e)) {
           print('Hoja Productos no encontrada, omitiendo importación');
         } else {
@@ -657,23 +651,20 @@ class GoogleCloudService {
           for (var row in res.values!) {
             if (row.length >= 4 && row[2].toString().trim().isNotEmpty) {
               final id = row[0].toString();
-              if (replaceLocal || !box.containsKey(id)) {
-                final e = ExpenseModel(
-                  id: id.isNotEmpty ? id : const Uuid().v4(),
-                  date: DateTime.tryParse(row[1].toString()) ?? DateTime.now(),
-                  description: row[2].toString(),
-                  amount: double.tryParse(row[3].toString()) ?? 0.0,
-                  category: row.length > 4 ? row[4].toString() : 'Otros',
-                );
-                await box.put(e.id, e);
-              }
+              // UPSERT
+              final e = ExpenseModel(
+                id: id.isNotEmpty ? id : const Uuid().v4(),
+                date: DateTime.tryParse(row[1].toString()) ?? DateTime.now(),
+                description: row[2].toString(),
+                amount: double.tryParse(row[3].toString()) ?? 0.0,
+                category: row.length > 4 ? row[4].toString() : 'Otros',
+              );
+              await box.put(e.id, e);
             }
           }
         }
       } catch (e) {
-        if (_isAuthError(e)) {
-          rethrow; // Re-throw auth errors immediately
-        }
+        if (_isAuthError(e)) rethrow;
         if (_isMissingSheetError(e)) {
           print('Hoja Gastos no encontrada, omitiendo importación');
         } else {
@@ -690,23 +681,20 @@ class GoogleCloudService {
           for (var row in res.values!) {
             if (row.length >= 4 && row[2].toString().trim().isNotEmpty) {
               final id = row[0].toString();
-              if (replaceLocal || !box.containsKey(id)) {
-                final i = IncomeModel(
-                  id: id.isNotEmpty ? id : const Uuid().v4(),
-                  date: DateTime.tryParse(row[1].toString()) ?? DateTime.now(),
-                  description: row[2].toString(),
-                  amount: double.tryParse(row[3].toString()) ?? 0.0,
-                  category: row.length > 4 ? row[4].toString() : 'Otros',
-                );
-                await box.put(i.id, i);
-              }
+              // UPSERT
+              final i = IncomeModel(
+                id: id.isNotEmpty ? id : const Uuid().v4(),
+                date: DateTime.tryParse(row[1].toString()) ?? DateTime.now(),
+                description: row[2].toString(),
+                amount: double.tryParse(row[3].toString()) ?? 0.0,
+                category: row.length > 4 ? row[4].toString() : 'Otros',
+              );
+              await box.put(i.id, i);
             }
           }
         }
       } catch (e) {
-        if (_isAuthError(e)) {
-          rethrow; // Re-throw auth errors immediately
-        }
+        if (_isAuthError(e)) rethrow;
         if (_isMissingSheetError(e)) {
           print('Hoja Ingresos no encontrada, omitiendo importación');
         } else {
@@ -739,9 +727,7 @@ class GoogleCloudService {
           }
         }
       } catch (e) {
-        if (_isAuthError(e)) {
-          rethrow; // Re-throw auth errors immediately
-        }
+        if (_isAuthError(e)) rethrow;
         if (_isMissingSheetError(e)) {
           print('Hoja Categorías no encontrada, omitiendo importación');
         } else {
@@ -758,8 +744,24 @@ class GoogleCloudService {
           for (var row in res.values!) {
             if (row.length >= 3 && row[2].toString().trim().isNotEmpty) {
               final id = row[0].toString();
-              if (replaceLocal || !box.containsKey(id)) {
-                final o = OrderModel(
+              
+              OrderModel orderToSave;
+              if (box.containsKey(id)) {
+                 // UPSERT: Update existing
+                 final existing = box.get(id)!;
+                 final updatedEntity = existing.copyWith(
+                   customerName: row[2].toString(),
+                   totalPrice: double.tryParse(row[4].toString()) ?? existing.totalPrice,
+                   pendingBalance: double.tryParse(row[6].toString()) ?? existing.pendingBalance,
+                   deliveryDate: DateTime.tryParse(row[7].toString()) ?? existing.deliveryDate,
+                   status: row.length > 8 ? row[8].toString() : existing.status,
+                   saleDate: DateTime.tryParse(row[1].toString()) ?? existing.saleDate,
+                   isSynced: true,
+                 );
+                 orderToSave = OrderModel.fromEntity(updatedEntity);
+              } else {
+                 // Insert New
+                 orderToSave = OrderModel(
                   id: id.isNotEmpty ? id : const Uuid().v4(),
                   customerName: row[2].toString(),
                   items: [],
@@ -770,15 +772,13 @@ class GoogleCloudService {
                   saleDate: DateTime.tryParse(row[1].toString()) ?? DateTime.now(),
                   status: row.length > 8 ? row[8].toString() : 'Entregado',
                 );
-                await box.put(o.id, o);
               }
+              await box.put(orderToSave.id, orderToSave);
             }
           }
         }
       } catch (e) {
-        if (_isAuthError(e)) {
-          rethrow; // Re-throw auth errors immediately
-        }
+        if (_isAuthError(e)) rethrow;
         if (_isMissingSheetError(e)) {
           print('Hoja Pedidos no encontrada, omitiendo importación');
         } else {

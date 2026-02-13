@@ -239,8 +239,8 @@ class CartNotifier extends StateNotifier<CartState> {
           print('LOG: Error al guardar en Hive: ${failure.message}');
           state = state.copyWith(isLoading: false, errorMessage: 'Error al guardar: ${failure.message}');
         },
-        (_) async {
-           print('LOG: Pedido guardado con éxito. ID: ${order.id}');
+        (syncSuccess) async {
+           print('LOG: Pedido guardado con éxito. ID: ${order.id}. Synced: $syncSuccess');
            
            // Paso 3: PDF (Opcional/Riesgoso)
            try {
@@ -251,12 +251,18 @@ class CartNotifier extends StateNotifier<CartState> {
            } catch (e) {
               print('LOG: Error generando PDF: $e');
               // Non-critical error, order is saved.
-              state = state.copyWith(errorMessage: 'Pedido guardado, pero error al imprimir: $e');
+              // We could warn, but sync status is more important.
            }
 
            clearCart(); 
-           // manually set success state to show snackbar, as clearCart resets it
-           state = const CartState(isSuccess: true);
+           // manually set success state to show snackbar
+           // We can pass syncSuccess via errorMessage hack or a new field, 
+           // but simpler to just use errorMessage for "Warning" if sync failed.
+           if (syncSuccess) {
+             state = const CartState(isSuccess: true);
+           } else {
+             state = const CartState(isSuccess: true, errorMessage: 'Guardado LOCALMENTE, pero falló la subida a Nube.');
+           }
         },
       );
     } catch (e) {
