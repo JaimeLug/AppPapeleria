@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../inventory/presentation/providers/product_providers.dart';
 import '../../../inventory/domain/entities/product.dart';
 import '../providers/settings_provider.dart';
+import 'package:hive/hive.dart';
 import '../../../../core/services/google_cloud_service.dart';
 import 'package:uuid/uuid.dart';
 
@@ -156,6 +157,27 @@ class _CategoryEditorDialogState extends ConsumerState<CategoryEditorDialog> {
                     notes: product.notes,
                   );
                   await notifier.updateProduct(updatedProduct, ref);
+                }
+
+                // Delete from Cloud
+                try {
+                  final googleService = GoogleCloudService();
+                  if (googleService.isAuthenticated) {
+                     final settingsBox = Hive.box('settings');
+                     final settingsMap = settingsBox.get('appSettings');
+                     if (settingsMap != null) {
+                       final settings = Map<String, dynamic>.from(settingsMap);
+                       if (settings['syncSheetsEnabled'] == true && settings['googleSheetId'] != null) {
+                         final sheetId = settings['googleSheetId'] as String;
+                         if (sheetId.isNotEmpty) {
+                           print('Intentando eliminar categoría $categoryName de Cloud...');
+                           await googleService.deleteRowById(sheetId, 'Categorías', categoryName);
+                         }
+                       }
+                     }
+                  }
+                } catch (e) {
+                  print('Error al intentar borrar categoría de la nube: $e');
                 }
                 
                 if (mounted) {

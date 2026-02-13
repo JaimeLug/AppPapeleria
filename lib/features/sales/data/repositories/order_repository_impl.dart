@@ -97,8 +97,15 @@ class OrderRepositoryImpl implements OrderRepository {
         try {
           final googleService = GoogleCloudService();
           if (googleService.isAuthenticated) {
-            print('LOG: Deleting calendar event: ${order.googleEventId}');
-            await googleService.deleteCalendarEvent(order.googleEventId!);
+            final settingsBox = Hive.box('settings');
+            final settingsMap = settingsBox.get('appSettings');
+            if (settingsMap != null) {
+              final settings = Map<String, dynamic>.from(settingsMap);
+              if (settings['syncCalendarEnabled'] == true) {
+                print('LOG: Deleting calendar event: ${order.googleEventId}');
+                await googleService.deleteCalendarEvent(order.googleEventId!);
+              }
+            }
           }
         } catch (e) {
           print('LOG: Error deleting calendar event: $e');
