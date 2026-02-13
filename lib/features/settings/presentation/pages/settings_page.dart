@@ -494,7 +494,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 Center(
                   child: Column(
                     children: [
-                      Text('Versión 1.2.1', style: TextStyle(color: Colors.grey[400])),
+                      Text('Versión 1.3.0', style: TextStyle(color: Colors.grey[400])),
                       const SizedBox(height: 4),
                       Text('Desarrollado con ❤️ por Jaime Lugo', style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.bold)),
                     ],
