@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:rxdart/rxdart.dart';
@@ -25,170 +26,191 @@ final incomeRepositoryProvider = Provider<IncomeRepository>((ref) {
 });
 
 // Expenses List Provider (Reactive)
-final expensesProvider = StreamProvider.autoDispose<List<ExpenseModel>>((ref) {
+final expensesProvider = StreamProvider.autoDispose<List<ExpenseModel>>((ref) async* {
   final box = Hive.box<ExpenseModel>('expenses');
   
-  Stream<List<ExpenseModel>> getStream() {
-    return box.watch().map((event) {
-      final expenses = box.values.toList();
+  Future<List<ExpenseModel>> getProcessedExpenses() async {
+    final rawList = box.values.toList();
+    return await compute((List<ExpenseModel> expenses) {
       expenses.sort((a, b) => b.date.compareTo(a.date));
       return expenses;
-    });
+    }, rawList);
   }
 
-  final initial = box.values.toList();
-  initial.sort((a, b) => b.date.compareTo(a.date));
-
-  return Stream.value(initial).concatWith([getStream()]);
+  yield await getProcessedExpenses();
+  
+  await for (final _ in box.watch()) {
+    yield await getProcessedExpenses();
+  }
 });
 
 // Incomes List Provider (Reactive)
-final incomesProvider = StreamProvider.autoDispose<List<IncomeModel>>((ref) {
+final incomesProvider = StreamProvider.autoDispose<List<IncomeModel>>((ref) async* {
   final box = Hive.box<IncomeModel>('incomes');
   
-  Stream<List<IncomeModel>> getStream() {
-    return box.watch().map((event) {
-      final incomes = box.values.toList();
+  Future<List<IncomeModel>> getProcessedIncomes() async {
+    final rawList = box.values.toList();
+    return await compute((List<IncomeModel> incomes) {
       incomes.sort((a, b) => b.date.compareTo(a.date));
       return incomes;
-    });
+    }, rawList);
   }
 
-  final initial = box.values.toList();
-  initial.sort((a, b) => b.date.compareTo(a.date));
-
-  return Stream.value(initial).concatWith([getStream()]);
+  yield await getProcessedIncomes();
+  
+  await for (final _ in box.watch()) {
+    yield await getProcessedIncomes();
+  }
 });
 
 // Unified Transactions Provider
-final unifiedTransactionsProvider = StreamProvider.autoDispose<List<FinancialTransaction>>((ref) {
+final unifiedTransactionsProvider = StreamProvider.autoDispose<List<FinancialTransaction>>((ref) async* {
   final selectedDate = ref.watch(selectedDateProvider);
   final filter = ref.watch(financeFilterProvider);
   final expensesBox = Hive.box<ExpenseModel>('expenses');
   final incomesBox = Hive.box<IncomeModel>('incomes');
   final ordersBox = Hive.box<OrderModel>('orders');
   
-  List<FinancialTransaction> getTransactions() {
-    final transactions = <FinancialTransaction>[];
+  Future<List<FinancialTransaction>> getTransactions() async {
+    final rawExpenses = expensesBox.values.toList();
+    final rawIncomes = incomesBox.values.toList();
+    final rawOrders = ordersBox.values.toList();
 
-    // Add Expenses
-    if (filter == null || filter == 'expense') {
-      final monthExpenses = expensesBox.values.where((e) {
-        return e.date.year == selectedDate.year && e.date.month == selectedDate.month;
-      });
+    return await compute((Map<String, dynamic> data) {
+      final sDate = data['selectedDate'] as DateTime;
+      final f = data['filter'] as String?;
+      final expenses = data['expenses'] as List<ExpenseModel>;
+      final incomes = data['incomes'] as List<IncomeModel>;
+      final orders = data['orders'] as List<OrderModel>;
       
-      for (var e in monthExpenses) {
-        transactions.add(FinancialTransaction(
-          id: e.id,
-          description: e.description,
-          amount: -e.amount, // Negative for expense
-          date: e.date,
-          type: 'expense',
-          category: e.category,
-        ));
-      }
-    }
+      final transactions = <FinancialTransaction>[];
 
-    // Add Manual Incomes
-    if (filter == null || filter == 'income') {
-      final monthIncomes = incomesBox.values.where((i) {
-        return i.date.year == selectedDate.year && i.date.month == selectedDate.month;
-      });
-
-      for (var i in monthIncomes) {
-        transactions.add(FinancialTransaction(
-          id: i.id,
-          description: i.description,
-          amount: i.amount,
-          date: i.date,
-          type: 'income',
-          category: i.category,
-        ));
-      }
-
-      // Add Order Incomes (Advances/Abonos)
-      final monthOrders = ordersBox.values.where((o) {
-        final date = o.saleDate ?? o.deliveryDate;
-        return date.year == selectedDate.year && date.month == selectedDate.month;
-      });
-
-      for (var o in monthOrders) {
-        double collected = o.totalPrice - o.pendingBalance;
-        if (collected > 0.01) {
+      // Add Expenses
+      if (f == null || f == 'expense') {
+        final monthExpenses = expenses.where((e) {
+          return e.date.year == sDate.year && e.date.month == sDate.month;
+        });
+        for (var e in monthExpenses) {
           transactions.add(FinancialTransaction(
-            id: 'order_${o.id}',
-            description: 'Venta - ${o.customerName}',
-            amount: collected,
-            date: o.saleDate ?? o.deliveryDate,
-            type: 'income',
-            category: 'Pedido',
+            id: e.id, description: e.description, amount: -e.amount, date: e.date, type: 'expense', category: e.category,
           ));
         }
       }
-    }
 
-    // Sort descending
-    transactions.sort((a, b) => b.date.compareTo(a.date));
-    return transactions;
+      // Add Manual Incomes
+      if (f == null || f == 'income') {
+        final monthIncomes = incomes.where((i) {
+          return i.date.year == sDate.year && i.date.month == sDate.month;
+        });
+        for (var i in monthIncomes) {
+          transactions.add(FinancialTransaction(
+            id: i.id, description: i.description, amount: i.amount, date: i.date, type: 'income', category: i.category,
+          ));
+        }
+
+        // Add Order Incomes (Advances/Abonos)
+        final monthOrders = orders.where((o) {
+          final date = o.saleDate ?? o.deliveryDate;
+          return date.year == sDate.year && date.month == sDate.month;
+        });
+        for (var o in monthOrders) {
+          double collected = o.totalPrice - o.pendingBalance;
+          if (collected > 0.01) {
+            transactions.add(FinancialTransaction(
+              id: 'order_${o.id}', description: 'Venta - ${o.customerName}', amount: collected, date: o.saleDate ?? o.deliveryDate, type: 'income', category: 'Pedido',
+            ));
+          }
+        }
+      }
+
+      transactions.sort((a, b) => b.date.compareTo(a.date));
+      return transactions;
+    }, {
+      'selectedDate': selectedDate,
+      'filter': filter,
+      'expenses': rawExpenses,
+      'incomes': rawIncomes,
+      'orders': rawOrders,
+    });
   }
 
-  return Stream.fromIterable([getTransactions()]).mergeWith([
-    expensesBox.watch().map((_) => getTransactions()),
-    incomesBox.watch().map((_) => getTransactions()),
-    ordersBox.watch().map((_) => getTransactions()),
+  yield await getTransactions();
+
+  final combinedStream = Rx.merge([
+    expensesBox.watch(),
+    incomesBox.watch(),
+    ordersBox.watch(),
   ]);
+
+  await for (final _ in combinedStream) {
+    yield await getTransactions();
+  }
 });
 
 // Monthly Balance Provider (Reactive)
-final monthlyBalanceProvider = StreamProvider.autoDispose<Map<String, double>>((ref) {
-  final selectedDate = ref.watch(selectedDateProvider); // Watch selected date
+final monthlyBalanceProvider = StreamProvider.autoDispose<Map<String, double>>((ref) async* {
+  final selectedDate = ref.watch(selectedDateProvider);
   final ordersBox = Hive.box<OrderModel>('orders');
   final expensesBox = Hive.box<ExpenseModel>('expenses');
   final incomesBox = Hive.box<IncomeModel>('incomes');
 
-  // Helper to calculate balance
-  Map<String, double> calculateBalance() {
-    // Use selectedDate instead of DateTime.now()
-    
-    // Expenses
-    final currentMonthExpenses = expensesBox.values.where((e) {
-      return e.date.year == selectedDate.year && e.date.month == selectedDate.month;
+  Future<Map<String, double>> calculateBalance() async {
+    final rawOrders = ordersBox.values.toList();
+    final rawExpenses = expensesBox.values.toList();
+    final rawIncomes = incomesBox.values.toList();
+
+    return await compute((Map<String, dynamic> data) {
+      final sDate = data['selectedDate'] as DateTime;
+      final orders = data['orders'] as List<OrderModel>;
+      final expenses = data['expenses'] as List<ExpenseModel>;
+      final incomes = data['incomes'] as List<IncomeModel>;
+
+      final currentMonthExpenses = expenses.where((e) {
+        return e.date.year == sDate.year && e.date.month == sDate.month;
+      });
+      final totalExpenses = currentMonthExpenses.fold(0.0, (sum, e) => sum + e.amount);
+
+      final currentMonthOrders = orders.where((o) {
+        final date = o.saleDate ?? o.deliveryDate;
+        return date.year == sDate.year && date.month == sDate.month;
+      });
+      
+      double totalOrderIncome = 0.0;
+      for (var order in currentMonthOrders) {
+        double collected = order.totalPrice - order.pendingBalance;
+        if (collected < 0) collected = 0;
+        totalOrderIncome += collected;
+      }
+
+      final currentMonthIncomes = incomes.where((i) {
+        return i.date.year == sDate.year && i.date.month == sDate.month;
+      });
+      final totalManualIncome = currentMonthIncomes.fold(0.0, (sum, i) => sum + i.amount);
+
+      final totalIncome = totalOrderIncome + totalManualIncome;
+
+      return {
+        'income': totalIncome,
+        'expenses': totalExpenses,
+        'profit': totalIncome - totalExpenses,
+      };
+    }, {
+      'selectedDate': selectedDate,
+      'orders': rawOrders,
+      'expenses': rawExpenses,
+      'incomes': rawIncomes,
     });
-    final totalExpenses = currentMonthExpenses.fold(0.0, (sum, e) => sum + e.amount);
-
-    // Incomes from Orders
-    final currentMonthOrders = ordersBox.values.where((o) {
-      final date = o.saleDate ?? o.deliveryDate;
-      return date.year == selectedDate.year && date.month == selectedDate.month;
-    });
-    
-    double totalOrderIncome = 0.0;
-    for (var order in currentMonthOrders) {
-      // Logic: Collected = Total - Pending.
-      double collected = order.totalPrice - order.pendingBalance;
-      if (collected < 0) collected = 0;
-      totalOrderIncome += collected;
-    }
-
-    // Manual Incomes
-    final currentMonthIncomes = incomesBox.values.where((i) {
-      return i.date.year == selectedDate.year && i.date.month == selectedDate.month;
-    });
-    final totalManualIncome = currentMonthIncomes.fold(0.0, (sum, i) => sum + i.amount);
-
-    final totalIncome = totalOrderIncome + totalManualIncome;
-
-    return {
-      'income': totalIncome,
-      'expenses': totalExpenses,
-      'profit': totalIncome - totalExpenses,
-    };
   }
 
-  // Combine streams from all 3 boxes
-  return Stream.fromIterable([calculateBalance()]).mergeWith([
-    ordersBox.watch().map((_) => calculateBalance()),
-    expensesBox.watch().map((_) => calculateBalance()),
-    incomesBox.watch().map((_) => calculateBalance()),
+  yield await calculateBalance();
+
+  final combinedStream = Rx.merge([
+    ordersBox.watch(),
+    expensesBox.watch(),
+    incomesBox.watch(),
   ]);
+
+  await for (final _ in combinedStream) {
+    yield await calculateBalance();
+  }
 });

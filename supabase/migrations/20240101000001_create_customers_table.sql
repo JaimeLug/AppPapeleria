@@ -3,6 +3,7 @@ create table if not exists public.customers (
   id uuid default gen_random_uuid() primary key,
   name text not null,
   phone text,
+  is_deleted boolean default false not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
   -- Foreign key to auth.users if needed for multi-tenant (or simple RLS)

@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hive/hive.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/services/google_cloud_service.dart';
@@ -31,14 +32,7 @@ class OrderRepositoryImpl implements OrderRepository {
            
            if (googleService.isAuthenticated) {
              
-             // 1. Spreadsheet Sync
-             if (settings['syncSheetsEnabled'] == true && settings['googleSheetId'] != null) {
-               print('LOG: Attempting to sync to Sheets...');
-               await googleService.appendOrderToSheet(settings['googleSheetId'], order);
-               syncSuccess = true; // Mark as synced if sheet append works (primary)
-             }
-
-             // 2. Calendar Sync - Lifecycle Management
+             // 1. Calendar Sync - Lifecycle Management (Must happen FIRST to get the Event ID)
              if (settings['syncCalendarEnabled'] == true) {
                if (eventId != null && eventId.isNotEmpty) {
                  print('LOG: Attempting to update existing Calendar event: $eventId');
@@ -51,6 +45,15 @@ class OrderRepositoryImpl implements OrderRepository {
                  print('LOG: No Event ID found. Creating new Calendar event.');
                  eventId = await googleService.createCalendarEvent(order);
                }
+             }
+
+             // 2. Spreadsheet Sync
+             if (settings['syncSheetsEnabled'] == true && settings['googleSheetId'] != null) {
+               print('LOG: Attempting to sync to Sheets...');
+               // Inject the Event ID into the order before sending it to Sheets
+               final orderWithEventId = order.copyWith(googleEventId: eventId);
+               await googleService.upsertOrderInSheet(settings['googleSheetId'], orderWithEventId);
+               syncSuccess = true; // Mark as synced if sheet append works (primary)
              }
            } else {
              print('LOG: Google Service not authenticated, skipping sync.');
@@ -126,10 +129,46 @@ class OrderRepositoryImpl implements OrderRepository {
   @override
   Future<Either<Failure, List<OrderEntity>>> getOrders() async {
     try {
-      final orders = orderBox.values.toList();
+      final rawOrders = orderBox.values.toList();
+      final orders = await compute((List<OrderModel> list) {
+        // Return sorted list
+        list.sort((a, b) => b.deliveryDate.compareTo(a.deliveryDate));
+        return list.map((e) => e as OrderEntity).toList();
+      }, rawOrders);
       return Right(orders);
     } catch (e) {
       return Left(CacheFailure(e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, bool>> syncOrders() async {
+    try {
+      final settingsBox = Hive.box('settings');
+      final settingsMap = settingsBox.get('appSettings');
+      if (settingsMap == null) return const Right(false);
+      
+      final settings = Map<String, dynamic>.from(settingsMap);
+      final sheetId = settings['googleSheetId'];
+      
+      if (sheetId == null || sheetId.isEmpty) {
+        return const Right(false);
+      }
+
+      final googleService = GoogleCloudService();
+      if (!googleService.isAuthenticated) {
+        // Try to restore session
+        final restored = await googleService.authenticateFromStoredCredentials();
+        if (!restored) return const Right(false);
+      }
+
+      // Perform Import (Upsert)
+      await googleService.importFromSheets(sheetId, replaceLocal: false);
+      
+      return const Right(true);
+    } catch (e) {
+      print('LOG: Sync error: $e');
+      return Left(ServerFailure(e.toString()));
     }
   }
 }

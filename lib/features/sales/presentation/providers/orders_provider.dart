@@ -1,6 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive/hive.dart';
-import '../../../../core/services/google_cloud_service.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/repositories/order_repository.dart';
 import 'cart_provider.dart';
@@ -18,8 +16,6 @@ class OrdersNotifier extends StateNotifier<AsyncValue<List<OrderEntity>>> {
     result.fold(
       (failure) => state = AsyncValue.error(failure, StackTrace.current),
       (orders) {
-        // Sort by delivery date ascending (closest first)
-        orders.sort((a, b) => a.deliveryDate.compareTo(b.deliveryDate));
         state = AsyncValue.data(orders);
       },
     );
@@ -95,35 +91,20 @@ class OrdersNotifier extends StateNotifier<AsyncValue<List<OrderEntity>>> {
     );
   }
   Future<bool> syncOrders() async {
-    try {
-      final settingsBox = Hive.box('settings');
-      final settingsMap = settingsBox.get('appSettings');
-      if (settingsMap == null) return false;
-      
-      final settings = Map<String, dynamic>.from(settingsMap);
-      final sheetId = settings['googleSheetId'];
-      
-      if (sheetId == null || sheetId.isEmpty) {
+    final result = await repository.syncOrders();
+    return result.fold(
+      (failure) {
+        print('LOG: Sync error: ${failure.message}');
         return false;
-      }
-
-      final googleService = GoogleCloudService();
-      if (!googleService.isAuthenticated) {
-        // Try to restore session
-        final restored = await googleService.authenticateFromStoredCredentials();
-        if (!restored) return false;
-      }
-
-      // Perform Import (Upsert)
-      await googleService.importFromSheets(sheetId, replaceLocal: false);
-      
-      // Refresh local list
-      await getOrders();
-      return true;
-    } catch (e) {
-      print('LOG: Sync error: $e');
-      return false;
-    }
+      },
+      (success) async {
+        if (success) {
+          // Refresh local list
+          await getOrders();
+        }
+        return success;
+      },
+    );
   }
 }
 

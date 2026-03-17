@@ -25,7 +25,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
     super.dispose();
   }
 
-  void _submit() {
+  void _submit() async {
     if (_formKey.currentState!.validate()) {
       final description = _descriptionController.text;
       final amount = double.tryParse(_amountController.text) ?? 0.0;
@@ -36,9 +36,23 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
         category: _category,
       );
 
-      ref.read(expenseRepositoryProvider).addExpense(expense);
-      
-      Navigator.of(context).pop();
+      try {
+        await ref.read(expenseRepositoryProvider).addExpense(expense);
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
     }
   }
 

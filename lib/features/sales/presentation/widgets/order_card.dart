@@ -223,118 +223,11 @@ class OrderCard extends ConsumerWidget {
   }
 
   void _showPaymentDialog(BuildContext context) {
-    final TextEditingController amountController = TextEditingController();
-    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.monetization_on, color: Colors.amber),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Registrar Abono',
-                style: const TextStyle(fontSize: 18),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Cliente: ${order.customerName}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Deuda Actual:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    '\$${order.pendingBalance.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: amountController,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: 'Cantidad a Abonar',
-                prefixText: '\$ ',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                suffixIcon: TextButton(
-                  onPressed: () {
-                    amountController.text = order.pendingBalance.toStringAsFixed(2);
-                  },
-                  child: const Text(
-                    'Liquidar\nTodo',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11),
-                  ),
-                ),
-              ),
-              autofocus: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              final amount = double.tryParse(amountController.text);
-              if (amount == null || amount <= 0) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Ingresa una cantidad válida')),
-                );
-                return;
-              }
-              if (amount > order.pendingBalance) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('El abono no puede ser mayor a la deuda (\$${order.pendingBalance.toStringAsFixed(2)})'),
-                  ),
-                );
-                return;
-              }
-              Navigator.pop(context);
-              if (onAddPayment != null) {
-                onAddPayment!(amount);
-              }
-            },
-            icon: const Icon(Icons.check),
-            label: const Text('Abonar'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.amber,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
+      builder: (context) => _PaymentDialogBody(
+        order: order,
+        onAddPayment: onAddPayment,
       ),
     );
   }
@@ -574,6 +467,148 @@ class OrderCard extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PaymentDialogBody extends StatefulWidget {
+  final OrderEntity order;
+  final Function(double)? onAddPayment;
+
+  const _PaymentDialogBody({
+    required this.order,
+    this.onAddPayment,
+  });
+
+  @override
+  State<_PaymentDialogBody> createState() => _PaymentDialogBodyState();
+}
+
+class _PaymentDialogBodyState extends State<_PaymentDialogBody> {
+  late final TextEditingController amountController;
+
+  @override
+  void initState() {
+    super.initState();
+    amountController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    amountController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: Row(
+        children: [
+          const Icon(Icons.monetization_on, color: Colors.amber),
+          const SizedBox(width: 8),
+          const Expanded(
+            child: Text(
+              'Registrar Abono',
+              style: TextStyle(fontSize: 18),
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Cliente: ${widget.order.customerName}',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.orange.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Deuda Actual:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '\$${widget.order.pendingBalance.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: amountController,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Cantidad a Abonar',
+              prefixText: '\$ ',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              suffixIcon: TextButton(
+                onPressed: () {
+                  amountController.text = widget.order.pendingBalance.toStringAsFixed(2);
+                },
+                child: const Text(
+                  'Liquidar\nTodo',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 11),
+                ),
+              ),
+            ),
+            autofocus: true,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+        ElevatedButton.icon(
+          onPressed: () {
+            final amount = double.tryParse(amountController.text);
+            if (amount == null || amount <= 0) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Ingresa una cantidad válida')),
+              );
+              return;
+            }
+            if (amount > widget.order.pendingBalance) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('El abono no puede ser mayor a la deuda (\$${widget.order.pendingBalance.toStringAsFixed(2)})'),
+                ),
+              );
+              return;
+            }
+            Navigator.pop(context);
+            if (widget.onAddPayment != null) {
+              widget.onAddPayment!(amount);
+            }
+          },
+          icon: const Icon(Icons.check),
+          label: const Text('Abonar'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.amber,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
     );
   }
 }

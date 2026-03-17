@@ -4,7 +4,6 @@ import '../../../inventory/presentation/providers/product_providers.dart';
 import '../../../inventory/domain/entities/product.dart';
 import '../providers/settings_provider.dart';
 import 'package:hive/hive.dart';
-import '../../../../core/services/google_cloud_service.dart';
 import 'package:uuid/uuid.dart';
 
 class CategoryEditorDialog extends ConsumerStatefulWidget {
@@ -78,54 +77,11 @@ class _CategoryEditorDialogState extends ConsumerState<CategoryEditorDialog> {
   }
 
   void _showRenameDialog(BuildContext context, String currentName, List<ProductEntity> allProducts) {
-    final controller = TextEditingController(text: currentName);
-    final isEditing = currentName.isNotEmpty;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isEditing ? 'Renombrar Categoría' : 'Nueva Categoría'),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: 'Nuevo Nombre'),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () async {
-              final newName = controller.text.trim();
-              if (newName.isNotEmpty && newName != currentName) {
-                // Bulk update logic
-                final productsToUpdate = allProducts.where((p) => p.category == currentName).toList();
-                
-                // Show loading or just process (it might be fast enough)
-                Navigator.pop(context); // Close rename dialog
-                
-                final notifier = ref.read(productListProvider.notifier);
-                for (var product in productsToUpdate) {
-                  final updatedProduct = ProductEntity(
-                    id: product.id,
-                    name: product.name,
-                    basePrice: product.basePrice,
-                    extraCost: product.extraCost,
-                    category: newName, // Update category
-                    notes: product.notes,
-                  );
-                  await notifier.updateProduct(updatedProduct, ref);
-                }
-                
-                // If initializing a new category, we don't have products to update, 
-                // but we might want to sync the "Category" itself if we had a dedicated sheet.
-                // For now, products are the primary sync.
-
-                if (mounted) {
-                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isEditing ? 'Categoría renombrada a "$newName"' : 'Categoría "$newName" creada')));
-                }
-              }
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
+      builder: (context) => _RenameCategoryDialogBody(
+        currentName: currentName,
+        allProducts: allProducts,
       ),
     );
   }
@@ -160,25 +116,7 @@ class _CategoryEditorDialogState extends ConsumerState<CategoryEditorDialog> {
                 }
 
                 // Delete from Cloud
-                try {
-                  final googleService = GoogleCloudService();
-                  if (googleService.isAuthenticated) {
-                     final settingsBox = Hive.box('settings');
-                     final settingsMap = settingsBox.get('appSettings');
-                     if (settingsMap != null) {
-                       final settings = Map<String, dynamic>.from(settingsMap);
-                       if (settings['syncSheetsEnabled'] == true && settings['googleSheetId'] != null) {
-                         final sheetId = settings['googleSheetId'] as String;
-                         if (sheetId.isNotEmpty) {
-                           print('Intentando eliminar categoría $categoryName de Cloud...');
-                           await googleService.deleteRowById(sheetId, 'Categorías', categoryName);
-                         }
-                       }
-                     }
-                  }
-                } catch (e) {
-                  print('Error al intentar borrar categoría de la nube: $e');
-                }
+                await ref.read(settingsProvider.notifier).deleteCategory(categoryName);
                 
                 if (mounted) {
                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Categoría eliminada')));
@@ -188,6 +126,72 @@ class _CategoryEditorDialogState extends ConsumerState<CategoryEditorDialog> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RenameCategoryDialogBody extends StatefulWidget {
+  final String currentName;
+  final List<ProductEntity> allProducts;
+
+  const _RenameCategoryDialogBody({
+    required this.currentName,
+    required this.allProducts,
+  });
+
+  @override
+  State<_RenameCategoryDialogBody> createState() => _RenameCategoryDialogBodyState();
+}
+
+class _RenameCategoryDialogBodyState extends State<_RenameCategoryDialogBody> {
+  late final TextEditingController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = TextEditingController(text: widget.currentName);
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Renombrar Categoría'),
+      content: TextField(
+        controller: controller,
+        decoration: const InputDecoration(
+          labelText: 'Nuevo Nombre',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        ElevatedButton(
+          onPressed: () {
+            final scaffoldMessenger = ScaffoldMessenger.of(context);
+            if (controller.text.isNotEmpty && controller.text != widget.currentName) {
+              final newName = controller.text;
+              
+              // Evitar duplicados
+              final settings = Hive.box('settings').get('appSettings') as Map<dynamic, dynamic>?;
+              final currentCategories = (settings?['productCategories'] as List<dynamic>?)?.cast<String>() ?? [];
+              
+              if (currentCategories.contains(newName)) {
+                scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Esta categoría ya existe')));
+                return;
+              }
+              
+              Navigator.pop(context, newName); // Return new name to caller
+            }
+          },
+          child: const Text('Guardar'),
+        ),
+      ],
     );
   }
 }

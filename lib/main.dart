@@ -11,9 +11,12 @@ import 'features/sales/data/models/order_item_model.dart';
 import 'features/sales/data/models/order_model.dart';
 import 'features/finance/data/models/expense_model.dart';
 import 'features/finance/data/models/income_model.dart';
+import 'features/inventory/data/models/inventory_item_model.dart';
+import 'features/inventory/data/models/stock_movement_model.dart';
 import 'core/services/google_cloud_service.dart';
 
 import 'features/settings/presentation/providers/settings_provider.dart';
+import 'features/settings/presentation/pages/google_login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,6 +32,8 @@ void main() async {
   Hive.registerAdapter(OrderItemModelAdapter());
   Hive.registerAdapter(ExpenseModelAdapter());
   Hive.registerAdapter(IncomeModelAdapter());
+  Hive.registerAdapter(InventoryItemModelAdapter());
+  Hive.registerAdapter(StockMovementModelAdapter());
   
   try {
     await Hive.openBox<CustomerModel>('customers');
@@ -36,6 +41,8 @@ void main() async {
     await Hive.openBox<ProductModel>('products');
     await Hive.openBox<ExpenseModel>('expenses');
     await Hive.openBox<IncomeModel>('incomes');
+    await Hive.openBox<InventoryItemModel>('inventoryItems');
+    await Hive.openBox<StockMovementModel>('stockMovements');
     await Hive.openBox('settings');
   } catch (e) {
     print('Error opening box, deleting old data: $e');
@@ -48,6 +55,8 @@ void main() async {
     await Hive.deleteBoxFromDisk('products');
     await Hive.deleteBoxFromDisk('expenses');
     await Hive.deleteBoxFromDisk('incomes');
+    await Hive.deleteBoxFromDisk('inventoryItems');
+    await Hive.deleteBoxFromDisk('stockMovements');
     await Hive.deleteBoxFromDisk('settings');
     
     // Retry opening boxes
@@ -56,35 +65,44 @@ void main() async {
     await Hive.openBox<ProductModel>('products');
     await Hive.openBox<ExpenseModel>('expenses');
     await Hive.openBox<IncomeModel>('incomes');
+    await Hive.openBox<InventoryItemModel>('inventoryItems');
+    await Hive.openBox<StockMovementModel>('stockMovements');
     await Hive.openBox('settings');
   }
   
   // Attempt silent Google Cloud authentication
-  _initializeGoogleAuth();
-  
-  runApp(
-    const ProviderScope(
-      child: MyApp(),
-    ),
-  );
-}
-
-/// Initialize Google Cloud authentication silently in the background
-void _initializeGoogleAuth() async {
+  bool needsLogin = false;
   try {
     final googleService = GoogleCloudService();
     final success = await googleService.authenticateFromStoredCredentials();
     if (success) {
       print('Google Cloud: Sesión restaurada automáticamente');
+    } else {
+      // Check if sync is enabled
+      final settingsBox = Hive.box('settings');
+      final settingsMap = settingsBox.get('appSettings');
+      if (settingsMap != null) {
+        final settings = Map<String, dynamic>.from(settingsMap);
+        if (settings['syncSheetsEnabled'] == true || settings['syncCalendarEnabled'] == true) {
+          needsLogin = true;
+          print('Google Cloud: Sesión no restaurada y sincronización activa, forzando login.');
+        }
+      }
     }
   } catch (e) {
-    print('Google Cloud: No se pudo restaurar la sesión - $e');
-    // Fail silently, user can re-authenticate manually
+    print('Google Cloud: Error al restaurar la sesión - $e');
   }
+  
+  runApp(
+    ProviderScope(
+      child: MyApp(needsLogin: needsLogin),
+    ),
+  );
 }
 
 class MyApp extends ConsumerWidget {
-  const MyApp({super.key});
+  final bool needsLogin;
+  const MyApp({super.key, this.needsLogin = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -96,7 +114,8 @@ class MyApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      home: const DashboardPage(),
+      home: needsLogin ? const GoogleLoginPage() : const DashboardPage(),
     );
   }
 }
+

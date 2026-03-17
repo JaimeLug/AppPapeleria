@@ -7,6 +7,7 @@ create table if not exists public.incomes (
   description text,
   payment_method text not null,
   order_id uuid references public.orders(id) on delete set null, -- Optional link to order
+  is_deleted boolean default false not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
   user_id uuid references auth.users(id)
@@ -21,6 +22,7 @@ create table if not exists public.expenses (
   description text,
   payment_method text not null,
   receipt_url text,
+  is_deleted boolean default false not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
   user_id uuid references auth.users(id)

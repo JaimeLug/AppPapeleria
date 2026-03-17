@@ -5,6 +5,7 @@ import 'package:googleapis_auth/auth_io.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../exceptions/auth_exception.dart';
 
 // Feature imports with correct paths
@@ -15,6 +16,8 @@ import '../../features/sales/data/models/customer_model.dart';
 import '../../features/finance/data/models/expense_model.dart';
 import '../../features/inventory/data/models/product_model.dart';
 import '../../features/inventory/domain/entities/product.dart';
+import '../../features/inventory/data/models/inventory_item_model.dart';
+import '../../features/inventory/data/models/stock_movement_model.dart';
 import '../../features/finance/data/models/income_model.dart';
 import 'package:uuid/uuid.dart';
 import '../../features/sales/domain/entities/customer.dart';
@@ -31,6 +34,7 @@ class GoogleCloudService {
   ];
 
   static const _credentialsKey = 'google_credentials';
+  final _storage = const FlutterSecureStorage();
 
   bool get isAuthenticated => _client != null;
 
@@ -72,9 +76,21 @@ class GoogleCloudService {
   Future<bool> authenticateFromStoredCredentials() async {
     try {
       final settingsBox = Hive.box('settings');
-      final credentialsJson = settingsBox.get(_credentialsKey);
       
-      if (credentialsJson == null) return false;
+      String? credentialsJson = await _storage.read(key: _credentialsKey);
+      
+      // Fallback to Hive for migration if secure storage is empty
+      if (credentialsJson == null) {
+         final oldCredentials = settingsBox.get(_credentialsKey);
+         if (oldCredentials != null) {
+             print('Migrando credenciales de Hive a SecureStorage');
+             credentialsJson = oldCredentials as String;
+             await _storage.write(key: _credentialsKey, value: credentialsJson);
+             await settingsBox.delete(_credentialsKey); // Clean old
+         } else {
+             return false;
+         }
+      }
 
       final settingsMap = settingsBox.get('appSettings');
       if (settingsMap == null) return false;
@@ -85,20 +101,20 @@ class GoogleCloudService {
 
       if (clientId == null || clientSecret == null) return false;
 
-      final credentialsMap = json.decode(credentialsJson as String);
+      final credentialsMap = json.decode(credentialsJson);
       final credentials = AccessCredentials(
         AccessToken(
           credentialsMap['accessToken']['type'],
           credentialsMap['accessToken']['data'],
-          DateTime.parse(credentialsMap['accessToken']['expiry']),
+          DateTime.parse(credentialsMap['accessToken']['expiry']).toUtc(),
         ),
         credentialsMap['refreshToken'],
         _scopes,
       );
 
       final identifier = ClientId(clientId, clientSecret);
-      _client = authenticatedClient(http.Client(), credentials);
-      print('Sesión restaurada exitosamente');
+      _client = autoRefreshingClient(identifier, credentials, http.Client());
+      print('Sesión restaurada exitosamente (con Auto-Refresh)');
       return true;
     } catch (e) {
       print('Error restaurando sesión: $e');
@@ -117,8 +133,7 @@ class GoogleCloudService {
       'refreshToken': credentials.refreshToken,
     };
 
-    final settingsBox = Hive.box('settings');
-    await settingsBox.put(_credentialsKey, json.encode(credentialsMap));
+    await _storage.write(key: _credentialsKey, value: json.encode(credentialsMap));
   }
 
   /// Logout and clear credentials
@@ -126,8 +141,12 @@ class GoogleCloudService {
     try {
       _client?.close();
       _client = null;
+      await _storage.delete(key: _credentialsKey);
+      
+      // Also clean old Hive credentials just in case
       final settingsBox = Hive.box('settings');
       await settingsBox.delete(_credentialsKey);
+      
       print('Sesión cerrada y credenciales eliminadas');
     } catch (e) {
       print('Error al cerrar sesión: $e');
@@ -162,18 +181,39 @@ class GoogleCloudService {
     try {
       final res = await sheetsApi.spreadsheets.values.get(spreadsheetId, '$sheetName!A2:A');
       if (res.values == null) return {};
-      return res.values!.map((row) => row[0].toString()).toSet();
+      return res.values!.map((row) => row.isNotEmpty ? row[0].toString() : '').where((e) => e.isNotEmpty).toSet();
     } catch (e) {
       if (_isAuthError(e)) {
-        print('Auth error detected in _getExistingIds: $e');
         await logout();
         throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
       }
-      if (_isMissingSheetError(e)) {
-        print('Hoja $sheetName no encontrada, asumiendo vacía');
-        return {}; // Sheet doesn't exist - return empty set
-      }
+      if (_isMissingSheetError(e)) return {};
       print('Error obteniendo IDs de $sheetName: $e');
+      return {};
+    }
+  }
+
+  Future<Map<String, int>> _getExistingIdsWithIndex(String spreadsheetId, String sheetName) async {
+    if (_client == null || spreadsheetId.isEmpty) return {};
+    final sheetsApi = sheets.SheetsApi(_client!);
+    try {
+      final res = await sheetsApi.spreadsheets.values.get(spreadsheetId, '$sheetName!A2:A');
+      if (res.values == null) return {};
+      final map = <String, int>{};
+      for (int i = 0; i < res.values!.length; i++) {
+        final row = res.values![i];
+        if (row.isNotEmpty) {
+          map[row[0].toString()] = i + 2; // +2 since A2 is index 0
+        }
+      }
+      return map;
+    } catch (e) {
+      if (_isAuthError(e)) {
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado.');
+      }
+      if (_isMissingSheetError(e)) return {};
+      print('Error obteniendo IDs con índice de $sheetName: $e');
       return {};
     }
   }
@@ -252,45 +292,75 @@ class GoogleCloudService {
         throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
       }
       print('Error eliminando fila en Sheets: $e');
-      // We do not rethrow strictly, to Avoid crashing local app flow, 
-      // but Repository might handle it if we did. The plan said "notify error but don't stop local delete".
-      // We'll just log it here as "Error ignored remotely" or throw if we want the caller to know.
-      // For now, let's print.
+      throw Exception('Fallo de Red: No se pudo eliminar la fila en Google Sheets. ($e)');
     }
   }
 
   // --- Legacy Single-Item Methods (for real-time sync) ---
 
-  Future<void> appendOrderToSheet(String spreadsheetId, OrderEntity order) async {
+  Future<void> upsertOrderInSheet(String spreadsheetId, OrderEntity order) async {
     if (_client == null || spreadsheetId.isEmpty) return;
     try {
       final sheetName = 'Pedidos';
-      final headers = ['ID', 'Fecha', 'Cliente', 'Productos', 'Total', 'Anticipo', 'Saldo', 'Fecha Entrega', 'Estado'];
+      final headers = ['ID', 'Fecha', 'Cliente', 'Productos', 'Total', 'Anticipo', 'Saldo', 'Fecha Entrega', 'Estado', 'Event ID'];
       await _ensureSheetExists(spreadsheetId, sheetName, headers);
 
       final row = [
         order.id,
-        (order.saleDate ?? DateTime.now()).toIso8601String().split('T')[0],
+        (order.saleDate ?? DateTime.now()).toIso8601String(),
         order.customerName,
         order.items.map((i) => '${i.quantity}x ${i.productName}').join(', '),
         order.totalPrice.toStringAsFixed(2),
         (order.totalPrice - order.pendingBalance).toStringAsFixed(2),
         order.pendingBalance.toStringAsFixed(2),
-        order.deliveryDate.toIso8601String().split('T')[0],
+        order.deliveryDate.toIso8601String(),
         order.status,
+        order.googleEventId ?? '',
       ];
 
       final sheetsApi = sheets.SheetsApi(_client!);
+      
+      // Find row index (fetch Column A)
+      final res = await sheetsApi.spreadsheets.values.get(spreadsheetId, '$sheetName!A:A');
+      final values = res.values;
+      int rowIndex = -1;
+      
+      if (values != null) {
+        for (int i = 0; i < values.length; i++) {
+          if (values[i].isNotEmpty && values[i][0].toString() == order.id) {
+            rowIndex = i + 1; // 1-based index for A1 notation
+            break;
+          }
+        }
+      }
+
       final valueRange = sheets.ValueRange(values: [row]);
-      await sheetsApi.spreadsheets.values.append(
-        valueRange,
-        spreadsheetId,
-        '$sheetName!A2',
-        valueInputOption: 'USER_ENTERED',
-      );
-      print('Pedido ${order.id} sincronizado exitosamente');
+      
+      if (rowIndex != -1) {
+         // Update existing row
+         await sheetsApi.spreadsheets.values.update(
+            valueRange,
+            spreadsheetId,
+            '$sheetName!A$rowIndex',
+            valueInputOption: 'USER_ENTERED',
+         );
+      } else {
+         // Append new row
+         await sheetsApi.spreadsheets.values.append(
+            valueRange,
+            spreadsheetId,
+            '$sheetName!A2',
+            valueInputOption: 'USER_ENTERED',
+         );
+      }
+      print('Pedido ${order.id} sincronizado exitosamente en Sheets (Upsert)');
     } catch (e) {
-      print('Error sincronizando pedido individual: $e');
+      if (_isAuthError(e)) {
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado.');
+      }
+      print('Error sincronizando pedido individual en Sheets: $e');
+      throw Exception('Fallo de Red: No se pudo subir el pedido a Google Sheets. ($e)');
     }
   }
 
@@ -312,7 +382,12 @@ class GoogleCloudService {
       final sheetsApi = sheets.SheetsApi(_client!);
       await sheetsApi.spreadsheets.values.append(sheets.ValueRange(values: [row]), spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
     } catch (e) {
+      if (_isAuthError(e)) {
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado.');
+      }
       print('Error sincronizando gasto individual: $e');
+      throw Exception('Fallo de Red: No se pudo subir el gasto a Google Sheets. ($e)');
     }
   }
 
@@ -334,7 +409,12 @@ class GoogleCloudService {
       final sheetsApi = sheets.SheetsApi(_client!);
       await sheetsApi.spreadsheets.values.append(sheets.ValueRange(values: [row]), spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
     } catch (e) {
+      if (_isAuthError(e)) {
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado.');
+      }
       print('Error sincronizando ingreso individual: $e');
+      throw Exception('Fallo de Red: No se pudo subir el ingreso a Google Sheets. ($e)');
     }
   }
 
@@ -357,7 +437,12 @@ class GoogleCloudService {
       final sheetsApi = sheets.SheetsApi(_client!);
       await sheetsApi.spreadsheets.values.append(sheets.ValueRange(values: [row]), spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
     } catch (e) {
+      if (_isAuthError(e)) {
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado.');
+      }
       print('Error sincronizando producto individual: $e');
+      throw Exception('Fallo de Red: No se pudo subir el producto a Google Sheets. ($e)');
     }
   }
 
@@ -373,7 +458,97 @@ class GoogleCloudService {
       final sheetsApi = sheets.SheetsApi(_client!);
       await sheetsApi.spreadsheets.values.append(sheets.ValueRange(values: [row]), spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
     } catch (e) {
+      if (_isAuthError(e)) {
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado.');
+      }
       print('Error sincronizando cliente individual: $e');
+      throw Exception('Fallo de Red: No se pudo subir el cliente a Google Sheets. ($e)');
+    }
+  }
+
+  Future<void> upsertInventoryItemInSheet(String spreadsheetId, InventoryItemModel item) async {
+    if (_client == null || spreadsheetId.isEmpty) return;
+    try {
+      final sheetName = 'Inventario';
+      final headers = ['ID', 'Nombre', 'SKU', 'Tipo', 'Unidad Medida', 'Stock Actual', 'Stock Mínimo', 'Costo Unitario', 'Estado'];
+      await _ensureSheetExists(spreadsheetId, sheetName, headers);
+
+      final row = [
+        item.id,
+        item.name,
+        item.sku ?? '',
+        item.itemType,
+        item.unitOfMeasure,
+        item.currentStock.toStringAsFixed(2),
+        item.minimumStock.toStringAsFixed(2),
+        item.unitCost.toStringAsFixed(2),
+        item.isDeleted ? 'Eliminado' : 'Activo',
+      ];
+
+      final sheetsApi = sheets.SheetsApi(_client!);
+      
+      final res = await sheetsApi.spreadsheets.values.get(spreadsheetId, '$sheetName!A:A');
+      final values = res.values;
+      int rowIndex = -1;
+      
+      if (values != null) {
+        for (int i = 0; i < values.length; i++) {
+          if (values[i].isNotEmpty && values[i][0].toString() == item.id) {
+            rowIndex = i + 1;
+            break;
+          }
+        }
+      }
+
+      final valueRange = sheets.ValueRange(values: [row]);
+      
+      if (rowIndex != -1) {
+         await sheetsApi.spreadsheets.values.update(
+            valueRange, spreadsheetId, '$sheetName!A$rowIndex',
+            valueInputOption: 'USER_ENTERED',
+         );
+      } else {
+         await sheetsApi.spreadsheets.values.append(
+            valueRange, spreadsheetId, '$sheetName!A2',
+            valueInputOption: 'USER_ENTERED',
+         );
+      }
+    } catch (e) {
+      if (_isAuthError(e)) {
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado.');
+      }
+      print('Error sincronizando ítem de inventario: $e');
+      throw Exception('Fallo de Red: No se pudo subir el inventario a Google Sheets. ($e)');
+    }
+  }
+
+  Future<void> appendStockMovementToSheet(String spreadsheetId, StockMovementModel movement) async {
+    if (_client == null || spreadsheetId.isEmpty) return;
+    try {
+      final sheetName = 'Historial_Stock';
+      final headers = ['ID', 'Item ID', 'Tipo Movimiento', 'Cantidad', 'Fecha', 'Razón'];
+      await _ensureSheetExists(spreadsheetId, sheetName, headers);
+
+      final row = [
+        movement.id,
+        movement.itemId,
+        movement.movementType,
+        movement.quantity.toStringAsFixed(2),
+        movement.date.toIso8601String(),
+        movement.reason,
+      ];
+
+      final sheetsApi = sheets.SheetsApi(_client!);
+      await sheetsApi.spreadsheets.values.append(sheets.ValueRange(values: [row]), spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
+    } catch (e) {
+      if (_isAuthError(e)) {
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado.');
+      }
+      print('Error sincronizando movimiento de stock: $e');
+      throw Exception('Fallo de Red: No se pudo subir el movimiento de stock a Google Sheets. ($e)');
     }
   }
 
@@ -383,36 +558,60 @@ class GoogleCloudService {
     if (_client == null || spreadsheetId.isEmpty || orders.isEmpty) return;
     try {
       final sheetName = 'Pedidos';
-      final headers = ['ID', 'Fecha', 'Cliente', 'Productos', 'Total', 'Anticipo', 'Saldo', 'Fecha Entrega', 'Estado'];
+      final headers = ['ID', 'Fecha', 'Cliente', 'Productos', 'Total', 'Anticipo', 'Saldo', 'Fecha Entrega', 'Estado', 'Event ID'];
       await _ensureSheetExists(spreadsheetId, sheetName, headers);
       
       if (overwrite) await clearSheet(spreadsheetId, sheetName);
 
-      final existingIds = overwrite ? <String>{} : await _getExistingIds(spreadsheetId, sheetName);
-      final newOrders = orders.where((o) => !existingIds.contains(o.id)).toList();
+      final existingMap = overwrite ? <String, int>{} : await _getExistingIdsWithIndex(spreadsheetId, sheetName);
+      
+      final toUpdate = <sheets.ValueRange>[];
+      final toInsertList = <List<Object>>[];
+      
+      for (var o in orders) {
+        final rowData = [
+          o.id,
+          (o.saleDate ?? DateTime.now()).toIso8601String(),
+          o.customerName,
+          o.items.map((i) => '${i.quantity}x ${i.productName}').join(', '),
+          o.totalPrice.toStringAsFixed(2),
+          (o.totalPrice - o.pendingBalance).toStringAsFixed(2),
+          o.pendingBalance.toStringAsFixed(2),
+          o.deliveryDate.toIso8601String(),
+          o.status,
+          o.googleEventId ?? '',
+        ];
 
-      if (newOrders.isEmpty) return;
+        if (existingMap.containsKey(o.id)) {
+          final rowIdx = existingMap[o.id]!;
+          toUpdate.add(sheets.ValueRange(
+            range: '$sheetName!A$rowIdx',
+            values: [rowData],
+          ));
+        } else {
+          toInsertList.add(rowData);
+        }
+      }
 
       final sheetsApi = sheets.SheetsApi(_client!);
-      final rows = newOrders.map((o) => [
-        o.id,
-        (o.saleDate ?? DateTime.now()).toIso8601String().split('T')[0],
-        o.customerName,
-        o.items.map((i) => '${i.quantity}x ${i.productName}').join(', '),
-        o.totalPrice.toStringAsFixed(2),
-        (o.totalPrice - o.pendingBalance).toStringAsFixed(2),
-        o.pendingBalance.toStringAsFixed(2),
-        o.deliveryDate.toIso8601String().split('T')[0],
-        o.status,
-      ]).toList();
 
-      final valueRange = sheets.ValueRange(values: rows);
-      await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
+      if (toUpdate.isNotEmpty) {
+        final batchUpdateRequest = sheets.BatchUpdateValuesRequest(
+          data: toUpdate,
+          valueInputOption: 'USER_ENTERED',
+        );
+        await sheetsApi.spreadsheets.values.batchUpdate(batchUpdateRequest, spreadsheetId);
+      }
+
+      if (toInsertList.isNotEmpty) {
+        final valueRange = sheets.ValueRange(values: toInsertList);
+        await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
+      }
+      
     } catch (e) {
       if (_isAuthError(e)) {
-        print('Auth error detected in bulkExportOrders: $e');
         await logout();
-        throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
+        throw AuthException('Tu sesión de Google ha caducado.');
       }
       print('Error exportación masiva pedidos: $e');
       rethrow;
@@ -428,24 +627,48 @@ class GoogleCloudService {
       
       if (overwrite) await clearSheet(spreadsheetId, sheetName);
 
-      final existingIds = overwrite ? <String>{} : await _getExistingIds(spreadsheetId, sheetName);
-      final newExpenses = expenses.where((e) => !existingIds.contains(e.id)).toList();
+      final existingMap = overwrite ? <String, int>{} : await _getExistingIdsWithIndex(spreadsheetId, sheetName);
+      
+      final toUpdate = <sheets.ValueRange>[];
+      final toInsertList = <List<Object>>[];
+      
+      for (var e in expenses) {
+        final rowData = [
+          e.id,
+          e.date.toIso8601String(),
+          e.description,
+          e.amount.toStringAsFixed(2),
+          e.category,
+        ];
 
-      if (newExpenses.isEmpty) return;
+        if (existingMap.containsKey(e.id)) {
+          final rowIdx = existingMap[e.id]!;
+          toUpdate.add(sheets.ValueRange(
+            range: '$sheetName!A$rowIdx',
+            values: [rowData],
+          ));
+        } else {
+          toInsertList.add(rowData);
+        }
+      }
 
       final sheetsApi = sheets.SheetsApi(_client!);
-      final rows = newExpenses.map((e) => [
-        e.id,
-        e.date.toIso8601String().split('T')[0],
-        e.description,
-        e.amount.toStringAsFixed(2),
-        e.category,
-      ]).toList();
-      final valueRange = sheets.ValueRange(values: rows);
-      await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
+
+      if (toUpdate.isNotEmpty) {
+        final batchUpdateRequest = sheets.BatchUpdateValuesRequest(
+          data: toUpdate,
+          valueInputOption: 'USER_ENTERED',
+        );
+        await sheetsApi.spreadsheets.values.batchUpdate(batchUpdateRequest, spreadsheetId);
+      }
+
+      if (toInsertList.isNotEmpty) {
+        final valueRange = sheets.ValueRange(values: toInsertList);
+        await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
+      }
+      
     } catch (e) {
       if (_isAuthError(e)) {
-        print('Auth error detected in bulkExportExpenses: $e');
         await logout();
         throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
       }
@@ -463,24 +686,48 @@ class GoogleCloudService {
       
       if (overwrite) await clearSheet(spreadsheetId, sheetName);
 
-      final existingIds = overwrite ? <String>{} : await _getExistingIds(spreadsheetId, sheetName);
-      final newIncomes = incomes.where((i) => !existingIds.contains(i.id)).toList();
+      final existingMap = overwrite ? <String, int>{} : await _getExistingIdsWithIndex(spreadsheetId, sheetName);
+      
+      final toUpdate = <sheets.ValueRange>[];
+      final toInsertList = <List<Object>>[];
+      
+      for (var i in incomes) {
+        final rowData = [
+          i.id,
+          i.date.toIso8601String(),
+          i.description,
+          i.amount.toStringAsFixed(2),
+          i.category,
+        ];
 
-      if (newIncomes.isEmpty) return;
+        if (existingMap.containsKey(i.id)) {
+          final rowIdx = existingMap[i.id]!;
+          toUpdate.add(sheets.ValueRange(
+            range: '$sheetName!A$rowIdx',
+            values: [rowData],
+          ));
+        } else {
+          toInsertList.add(rowData);
+        }
+      }
 
       final sheetsApi = sheets.SheetsApi(_client!);
-      final rows = newIncomes.map((i) => [
-        i.id,
-        i.date.toIso8601String().split('T')[0],
-        i.description,
-        i.amount.toStringAsFixed(2),
-        i.category,
-      ]).toList();
-      final valueRange = sheets.ValueRange(values: rows);
-      await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
+
+      if (toUpdate.isNotEmpty) {
+        final batchUpdateRequest = sheets.BatchUpdateValuesRequest(
+          data: toUpdate,
+          valueInputOption: 'USER_ENTERED',
+        );
+        await sheetsApi.spreadsheets.values.batchUpdate(batchUpdateRequest, spreadsheetId);
+      }
+
+      if (toInsertList.isNotEmpty) {
+        final valueRange = sheets.ValueRange(values: toInsertList);
+        await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
+      }
+      
     } catch (e) {
       if (_isAuthError(e)) {
-        print('Auth error detected in bulkExportIncomes: $e');
         await logout();
         throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
       }
@@ -498,18 +745,44 @@ class GoogleCloudService {
       
       if (overwrite) await clearSheet(spreadsheetId, sheetName);
 
-      final existingIds = overwrite ? <String>{} : await _getExistingIds(spreadsheetId, sheetName);
-      final newCustomers = customers.where((c) => !existingIds.contains(c.id)).toList();
+      final existingMap = overwrite ? <String, int>{} : await _getExistingIdsWithIndex(spreadsheetId, sheetName);
+      
+      final toUpdate = <sheets.ValueRange>[];
+      final toInsertList = <List<Object>>[];
 
-      if (newCustomers.isEmpty) return;
+      for (var c in customers) {
+        final rowData = [
+          c.id, c.name, c.phone
+        ];
+
+        if (existingMap.containsKey(c.id)) {
+          final rowIdx = existingMap[c.id]!;
+          toUpdate.add(sheets.ValueRange(
+            range: '$sheetName!A$rowIdx',
+            values: [rowData],
+          ));
+        } else {
+          toInsertList.add(rowData);
+        }
+      }
 
       final sheetsApi = sheets.SheetsApi(_client!);
-      final rows = newCustomers.map((c) => [c.id, c.name, c.phone]).toList();
-      final valueRange = sheets.ValueRange(values: rows);
-      await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
+
+      if (toUpdate.isNotEmpty) {
+        final batchUpdateRequest = sheets.BatchUpdateValuesRequest(
+          data: toUpdate,
+          valueInputOption: 'USER_ENTERED',
+        );
+        await sheetsApi.spreadsheets.values.batchUpdate(batchUpdateRequest, spreadsheetId);
+      }
+
+      if (toInsertList.isNotEmpty) {
+        final valueRange = sheets.ValueRange(values: toInsertList);
+        await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
+      }
+
     } catch (e) {
       if (_isAuthError(e)) {
-        print('Auth error detected in bulkExportCustomers: $e');
         await logout();
         throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
       }
@@ -527,18 +800,44 @@ class GoogleCloudService {
       
       if (overwrite) await clearSheet(spreadsheetId, sheetName);
 
-      final existingIds = overwrite ? <String>{} : await _getExistingIds(spreadsheetId, sheetName);
-      final newProducts = products.where((p) => !existingIds.contains(p.id)).toList();
+      final existingMap = overwrite ? <String, int>{} : await _getExistingIdsWithIndex(spreadsheetId, sheetName);
+      
+      final toUpdate = <sheets.ValueRange>[];
+      final toInsertList = <List<Object>>[];
 
-      if (newProducts.isEmpty) return;
+      for (var p in products) {
+        final rowData = [
+          p.id, p.name, p.basePrice, p.extraCost, p.category, p.notes ?? ''
+        ];
+
+        if (existingMap.containsKey(p.id)) {
+          final rowIdx = existingMap[p.id]!;
+          toUpdate.add(sheets.ValueRange(
+            range: '$sheetName!A$rowIdx',
+            values: [rowData],
+          ));
+        } else {
+          toInsertList.add(rowData);
+        }
+      }
 
       final sheetsApi = sheets.SheetsApi(_client!);
-      final rows = newProducts.map((p) => [p.id, p.name, p.basePrice, p.extraCost, p.category, p.notes ?? '']).toList();
-      final valueRange = sheets.ValueRange(values: rows);
-      await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
+
+      if (toUpdate.isNotEmpty) {
+        final batchUpdateRequest = sheets.BatchUpdateValuesRequest(
+          data: toUpdate,
+          valueInputOption: 'USER_ENTERED',
+        );
+        await sheetsApi.spreadsheets.values.batchUpdate(batchUpdateRequest, spreadsheetId);
+      }
+
+      if (toInsertList.isNotEmpty) {
+        final valueRange = sheets.ValueRange(values: toInsertList);
+        await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
+      }
+
     } catch (e) {
       if (_isAuthError(e)) {
-        print('Auth error detected in bulkExportProducts: $e');
         await logout();
         throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
       }
@@ -556,23 +855,171 @@ class GoogleCloudService {
       
       if (overwrite) await clearSheet(spreadsheetId, sheetName);
 
-      final existingIds = overwrite ? <String>{} : await _getExistingIds(spreadsheetId, sheetName);
-      // For categories, we treat the name as ID for simplicity or generate a simple mapping
-      final newCategories = categories.where((cat) => !existingIds.contains(cat)).toList();
+      final existingMap = overwrite ? <String, int>{} : await _getExistingIdsWithIndex(spreadsheetId, sheetName);
+      
+      final toUpdate = <sheets.ValueRange>[];
+      final toInsertList = <List<Object>>[];
 
-      if (newCategories.isEmpty) return;
+      for (var cat in categories) {
+        final rowData = [
+          cat, cat // Category name is used as ID
+        ];
+
+        if (existingMap.containsKey(cat)) {
+          final rowIdx = existingMap[cat]!;
+          toUpdate.add(sheets.ValueRange(
+            range: '$sheetName!A$rowIdx',
+            values: [rowData],
+          ));
+        } else {
+          toInsertList.add(rowData);
+        }
+      }
 
       final sheetsApi = sheets.SheetsApi(_client!);
-      final rows = newCategories.map((cat) => [cat, cat]).toList();
-      final valueRange = sheets.ValueRange(values: rows);
-      await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
+
+      if (toUpdate.isNotEmpty) {
+        final batchUpdateRequest = sheets.BatchUpdateValuesRequest(
+          data: toUpdate,
+          valueInputOption: 'USER_ENTERED',
+        );
+        await sheetsApi.spreadsheets.values.batchUpdate(batchUpdateRequest, spreadsheetId);
+      }
+
+      if (toInsertList.isNotEmpty) {
+        final valueRange = sheets.ValueRange(values: toInsertList);
+        await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
+      }
+
     } catch (e) {
       if (_isAuthError(e)) {
-        print('Auth error detected in bulkExportCategories: $e');
         await logout();
         throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
       }
       print('Error exportación masiva categorías: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> bulkExportInventory(String spreadsheetId, List<InventoryItemModel> items, {bool overwrite = false}) async {
+    if (_client == null || spreadsheetId.isEmpty || items.isEmpty) return;
+    try {
+      final sheetName = 'Inventario';
+      final headers = ['ID', 'Nombre', 'SKU', 'Tipo', 'Unidad Medida', 'Stock Actual', 'Stock Mínimo', 'Costo Unitario', 'Estado'];
+      await _ensureSheetExists(spreadsheetId, sheetName, headers);
+      
+      if (overwrite) await clearSheet(spreadsheetId, sheetName);
+
+      final existingMap = overwrite ? <String, int>{} : await _getExistingIdsWithIndex(spreadsheetId, sheetName);
+      
+      final toUpdate = <sheets.ValueRange>[];
+      final toInsertList = <List<Object>>[];
+
+      for (var item in items) {
+        final rowData = [
+          item.id,
+          item.name,
+          item.sku ?? '',
+          item.itemType,
+          item.unitOfMeasure,
+          item.currentStock.toStringAsFixed(2),
+          item.minimumStock.toStringAsFixed(2),
+          item.unitCost.toStringAsFixed(2),
+          item.isDeleted ? 'Eliminado' : 'Activo',
+        ];
+
+        if (existingMap.containsKey(item.id)) {
+          final rowIdx = existingMap[item.id]!;
+          toUpdate.add(sheets.ValueRange(
+            range: '$sheetName!A$rowIdx',
+            values: [rowData],
+          ));
+        } else {
+          toInsertList.add(rowData);
+        }
+      }
+
+      final sheetsApi = sheets.SheetsApi(_client!);
+
+      if (toUpdate.isNotEmpty) {
+        final batchUpdateRequest = sheets.BatchUpdateValuesRequest(
+          data: toUpdate,
+          valueInputOption: 'USER_ENTERED',
+        );
+        await sheetsApi.spreadsheets.values.batchUpdate(batchUpdateRequest, spreadsheetId);
+      }
+
+      if (toInsertList.isNotEmpty) {
+        final valueRange = sheets.ValueRange(values: toInsertList);
+        await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
+      }
+
+    } catch (e) {
+      if (_isAuthError(e)) {
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado.');
+      }
+      print('Error exportación masiva inventario: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> bulkExportStockMovements(String spreadsheetId, List<StockMovementModel> movements, {bool overwrite = false}) async {
+    if (_client == null || spreadsheetId.isEmpty || movements.isEmpty) return;
+    try {
+      final sheetName = 'Historial_Stock';
+      final headers = ['ID', 'Item ID', 'Tipo Movimiento', 'Cantidad', 'Fecha', 'Razón'];
+      await _ensureSheetExists(spreadsheetId, sheetName, headers);
+      
+      if (overwrite) await clearSheet(spreadsheetId, sheetName);
+
+      final existingMap = overwrite ? <String, int>{} : await _getExistingIdsWithIndex(spreadsheetId, sheetName);
+      
+      final toUpdate = <sheets.ValueRange>[];
+      final toInsertList = <List<Object>>[];
+
+      for (var m in movements) {
+        final rowData = [
+          m.id,
+          m.itemId,
+          m.movementType,
+          m.quantity.toStringAsFixed(2),
+          m.date.toIso8601String(),
+          m.reason,
+        ];
+
+        if (existingMap.containsKey(m.id)) {
+          final rowIdx = existingMap[m.id]!;
+          toUpdate.add(sheets.ValueRange(
+            range: '$sheetName!A$rowIdx',
+            values: [rowData],
+          ));
+        } else {
+          toInsertList.add(rowData);
+        }
+      }
+
+      final sheetsApi = sheets.SheetsApi(_client!);
+
+      if (toUpdate.isNotEmpty) {
+        final batchUpdateRequest = sheets.BatchUpdateValuesRequest(
+          data: toUpdate,
+          valueInputOption: 'USER_ENTERED',
+        );
+        await sheetsApi.spreadsheets.values.batchUpdate(batchUpdateRequest, spreadsheetId);
+      }
+
+      if (toInsertList.isNotEmpty) {
+        final valueRange = sheets.ValueRange(values: toInsertList);
+        await sheetsApi.spreadsheets.values.append(valueRange, spreadsheetId, '$sheetName!A2', valueInputOption: 'USER_ENTERED');
+      }
+
+    } catch (e) {
+      if (_isAuthError(e)) {
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado.');
+      }
+      print('Error exportación masiva historial stock: $e');
       rethrow;
     }
   }
@@ -582,221 +1029,192 @@ class GoogleCloudService {
   Future<void> importFromSheets(String spreadsheetId, {bool replaceLocal = false}) async {
     if (_client == null || spreadsheetId.isEmpty) return;
     final sheetsApi = sheets.SheetsApi(_client!);
+
+    // Phase 1: Descarga Atómica de Seguridad
+    // Descargamos TODAS las hojas antes de tocar la base de datos local para evitar
+    // dejar la app vacía si se corta el internet a la mitad.
+    final Map<String, sheets.ValueRange?> allRes = {};
     try {
-      // 1. Clientes
-      try {
-        final res = await sheetsApi.spreadsheets.values.get(spreadsheetId, 'Clientes!A2:C');
-        if (res.values != null) {
-          final box = Hive.box<CustomerModel>('customers');
-          if (replaceLocal) await box.clear();
-          for (var row in res.values!) {
-            if (row.length >= 2 && row[1].toString().trim().isNotEmpty) {
-              final id = row[0].toString();
-              // UPSERT
-              final c = CustomerModel(
-                id: id.isNotEmpty ? id : const Uuid().v4(),
-                name: row[1].toString(),
-                phone: row.length > 2 ? row[2].toString() : '',
-              );
-              await box.put(c.id, c);
-            }
+      final sheetsToGet = [
+        'Clientes!A2:C', 
+        'Productos!A2:F', 
+        'Gastos!A2:E', 
+        'Ingresos!A2:E', 
+        'Categorías!A2:B', 
+        'Pedidos!A2:J'
+      ];
+      for (var s in sheetsToGet) {
+        final key = s.split('!')[0];
+        try {
+          allRes[key] = await sheetsApi.spreadsheets.values.get(spreadsheetId, s);
+        } catch (e) {
+          if (_isMissingSheetError(e)) {
+            allRes[key] = null;
+          } else {
+            rethrow; // Corta la ejecución completa si hay un error real de red
           }
         }
-      } catch (e) {
-        if (_isAuthError(e)) rethrow;
-        if (_isMissingSheetError(e)) {
-          print('Hoja Clientes no encontrada, omitiendo importación');
-        } else {
-          print('Error importando clientes: $e');
+      }
+    } catch (e) {
+      if (_isAuthError(e)) {
+        print('Auth error detected in importFromSheets download phase: $e');
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
+      }
+      print('Error de red durante la descarga de hojas. Abortando restauración para proteger datos locales: $e');
+      rethrow;
+    }
+
+    // Phase 2: Borrado y Escritura (Solo se ejecuta si la descarga fue 100% exitosa)
+    try {
+      // 1. Clientes
+      if (allRes['Clientes']?.values != null) {
+        final box = Hive.box<CustomerModel>('customers');
+        if (replaceLocal) await box.clear();
+        for (var row in allRes['Clientes']!.values!) {
+          if (row.length >= 2 && row[1].toString().trim().isNotEmpty) {
+            final id = row[0].toString();
+            final c = CustomerModel(
+              id: id.isNotEmpty ? id : const Uuid().v4(),
+              name: row[1].toString(),
+              phone: row.length > 2 ? row[2].toString() : '',
+            );
+            await box.put(c.id, c);
+          }
         }
       }
 
       // 2. Productos
-      try {
-        final res = await sheetsApi.spreadsheets.values.get(spreadsheetId, 'Productos!A2:F');
-        if (res.values != null) {
-          final box = Hive.box<ProductModel>('products');
-          if (replaceLocal) await box.clear();
-          for (var row in res.values!) {
-            if (row.length >= 2 && row[1].toString().trim().isNotEmpty) {
-              final id = row[0].toString();
-              // UPSERT
-              final p = ProductModel(
-                id: id.isNotEmpty ? id : const Uuid().v4(),
-                name: row[1].toString(),
-                basePrice: double.tryParse(row[2].toString()) ?? 0.0,
-                extraCost: double.tryParse(row[3].toString()) ?? 0.0,
-                category: row.length > 4 ? row[4].toString() : 'Otros',
-                notes: row.length > 5 ? row[5].toString() : null,
-              );
-              await box.put(p.id, p);
-            }
+      if (allRes['Productos']?.values != null) {
+        final box = Hive.box<ProductModel>('products');
+        if (replaceLocal) await box.clear();
+        for (var row in allRes['Productos']!.values!) {
+          if (row.length >= 2 && row[1].toString().trim().isNotEmpty) {
+            final id = row[0].toString();
+            final p = ProductModel(
+              id: id.isNotEmpty ? id : const Uuid().v4(),
+              name: row[1].toString(),
+              basePrice: double.tryParse(row[2].toString()) ?? 0.0,
+              extraCost: double.tryParse(row[3].toString()) ?? 0.0,
+              category: row.length > 4 ? row[4].toString() : 'Otros',
+              notes: row.length > 5 ? row[5].toString() : null,
+            );
+            await box.put(p.id, p);
           }
-        }
-      } catch (e) {
-        if (_isAuthError(e)) rethrow;
-        if (_isMissingSheetError(e)) {
-          print('Hoja Productos no encontrada, omitiendo importación');
-        } else {
-          print('Error importando productos: $e');
         }
       }
 
       // 3. Gastos
-      try {
-        final res = await sheetsApi.spreadsheets.values.get(spreadsheetId, 'Gastos!A2:E');
-        if (res.values != null) {
-          final box = Hive.box<ExpenseModel>('expenses');
-          if (replaceLocal) await box.clear();
-          for (var row in res.values!) {
-            if (row.length >= 4 && row[2].toString().trim().isNotEmpty) {
-              final id = row[0].toString();
-              // UPSERT
-              final e = ExpenseModel(
-                id: id.isNotEmpty ? id : const Uuid().v4(),
-                date: DateTime.tryParse(row[1].toString()) ?? DateTime.now(),
-                description: row[2].toString(),
-                amount: double.tryParse(row[3].toString()) ?? 0.0,
-                category: row.length > 4 ? row[4].toString() : 'Otros',
-              );
-              await box.put(e.id, e);
-            }
+      if (allRes['Gastos']?.values != null) {
+        final box = Hive.box<ExpenseModel>('expenses');
+        if (replaceLocal) await box.clear();
+        for (var row in allRes['Gastos']!.values!) {
+          if (row.length >= 4 && row[2].toString().trim().isNotEmpty) {
+            final id = row[0].toString();
+            final e = ExpenseModel(
+              id: id.isNotEmpty ? id : const Uuid().v4(),
+              date: DateTime.tryParse(row[1].toString()) ?? DateTime.now(),
+              description: row[2].toString(),
+              amount: double.tryParse(row[3].toString()) ?? 0.0,
+              category: row.length > 4 ? row[4].toString() : 'Otros',
+            );
+            await box.put(e.id, e);
           }
-        }
-      } catch (e) {
-        if (_isAuthError(e)) rethrow;
-        if (_isMissingSheetError(e)) {
-          print('Hoja Gastos no encontrada, omitiendo importación');
-        } else {
-          print('Error importando gastos: $e');
         }
       }
 
       // 4. Ingresos
-      try {
-        final res = await sheetsApi.spreadsheets.values.get(spreadsheetId, 'Ingresos!A2:E');
-        if (res.values != null) {
-          final box = Hive.box<IncomeModel>('incomes');
-          if (replaceLocal) await box.clear();
-          for (var row in res.values!) {
-            if (row.length >= 4 && row[2].toString().trim().isNotEmpty) {
-              final id = row[0].toString();
-              // UPSERT
-              final i = IncomeModel(
-                id: id.isNotEmpty ? id : const Uuid().v4(),
-                date: DateTime.tryParse(row[1].toString()) ?? DateTime.now(),
-                description: row[2].toString(),
-                amount: double.tryParse(row[3].toString()) ?? 0.0,
-                category: row.length > 4 ? row[4].toString() : 'Otros',
-              );
-              await box.put(i.id, i);
-            }
+      if (allRes['Ingresos']?.values != null) {
+        final box = Hive.box<IncomeModel>('incomes');
+        if (replaceLocal) await box.clear();
+        for (var row in allRes['Ingresos']!.values!) {
+          if (row.length >= 4 && row[2].toString().trim().isNotEmpty) {
+            final id = row[0].toString();
+            final i = IncomeModel(
+              id: id.isNotEmpty ? id : const Uuid().v4(),
+              date: DateTime.tryParse(row[1].toString()) ?? DateTime.now(),
+              description: row[2].toString(),
+              amount: double.tryParse(row[3].toString()) ?? 0.0,
+              category: row.length > 4 ? row[4].toString() : 'Otros',
+            );
+            await box.put(i.id, i);
           }
-        }
-      } catch (e) {
-        if (_isAuthError(e)) rethrow;
-        if (_isMissingSheetError(e)) {
-          print('Hoja Ingresos no encontrada, omitiendo importación');
-        } else {
-          print('Error importando ingresos: $e');
         }
       }
 
       // 5. Categorías
-      try {
-        final res = await sheetsApi.spreadsheets.values.get(spreadsheetId, 'Categorías!A2:B');
-        if (res.values != null) {
-          final settingsBox = Hive.box('settings');
-          final settingsMap = Map<String, dynamic>.from(settingsBox.get('appSettings') ?? {});
-          
-          final List<String> categories = List<String>.from(settingsMap['productCategories'] ?? []);
-          if (replaceLocal) categories.clear();
+      if (allRes['Categorías']?.values != null) {
+        final settingsBox = Hive.box('settings');
+        final settingsMap = Map<String, dynamic>.from(settingsBox.get('appSettings') ?? {});
+        
+        final List<String> categories = List<String>.from(settingsMap['productCategories'] ?? []);
+        if (replaceLocal) categories.clear();
 
-          for (var row in res.values!) {
-            if (row.length >= 2 && row[1].toString().trim().isNotEmpty) {
-              final catName = row[1].toString();
-              if (!categories.contains(catName)) {
-                categories.add(catName);
-              }
+        for (var row in allRes['Categorías']!.values!) {
+          if (row.length >= 2 && row[1].toString().trim().isNotEmpty) {
+            final catName = row[1].toString();
+            if (!categories.contains(catName)) {
+              categories.add(catName);
             }
           }
-          
-          if (categories.isNotEmpty) {
-            settingsMap['productCategories'] = categories;
-            await settingsBox.put('appSettings', settingsMap);
-          }
         }
-      } catch (e) {
-        if (_isAuthError(e)) rethrow;
-        if (_isMissingSheetError(e)) {
-          print('Hoja Categorías no encontrada, omitiendo importación');
-        } else {
-          print('Error importando categorías: $e');
+        
+        if (categories.isNotEmpty) {
+          settingsMap['productCategories'] = categories;
+          await settingsBox.put('appSettings', settingsMap);
         }
       }
 
       // 6. Pedidos
-      try {
-        final res = await sheetsApi.spreadsheets.values.get(spreadsheetId, 'Pedidos!A2:I');
-        if (res.values != null) {
-          final box = Hive.box<OrderModel>('orders');
-          if (replaceLocal) await box.clear();
-          for (var row in res.values!) {
-            if (row.length >= 3 && row[2].toString().trim().isNotEmpty) {
-              final id = row[0].toString();
-              
-              OrderModel orderToSave;
-              if (box.containsKey(id)) {
-                 // UPSERT: Update existing
-                 final existing = box.get(id)!;
-                 final updatedEntity = existing.copyWith(
-                   customerName: row[2].toString(),
-                   totalPrice: double.tryParse(row[4].toString()) ?? existing.totalPrice,
-                   pendingBalance: double.tryParse(row[6].toString()) ?? existing.pendingBalance,
-                   deliveryDate: DateTime.tryParse(row[7].toString()) ?? existing.deliveryDate,
-                   status: row.length > 8 ? row[8].toString() : existing.status,
-                   saleDate: DateTime.tryParse(row[1].toString()) ?? existing.saleDate,
-                   isSynced: true,
-                 );
-                 orderToSave = OrderModel.fromEntity(updatedEntity);
-              } else {
-                 // Insert New
-                 orderToSave = OrderModel(
-                  id: id.isNotEmpty ? id : const Uuid().v4(),
+      if (allRes['Pedidos']?.values != null) {
+        final box = Hive.box<OrderModel>('orders');
+        if (replaceLocal) await box.clear();
+        for (var row in allRes['Pedidos']!.values!) {
+          if (row.length >= 3 && row[2].toString().trim().isNotEmpty) {
+            final id = row[0].toString();
+            final eventIdFromSheet = row.length >= 10 && row[9].toString().trim().isNotEmpty ? row[9].toString() : null;
+            
+            OrderModel orderToSave;
+            if (box.containsKey(id)) {
+                final existing = box.get(id)!;
+                final updatedEntity = existing.copyWith(
                   customerName: row[2].toString(),
-                  items: [],
-                  totalPrice: double.tryParse(row[4].toString()) ?? 0.0,
-                  pendingBalance: double.tryParse(row[6].toString()) ?? 0.0,
-                  deliveryDate: DateTime.tryParse(row[7].toString()) ?? DateTime.now(),
+                  totalPrice: double.tryParse(row[4].toString()) ?? existing.totalPrice,
+                  pendingBalance: double.tryParse(row[6].toString()) ?? existing.pendingBalance,
+                  deliveryDate: DateTime.tryParse(row[7].toString()) ?? existing.deliveryDate,
+                  status: row.length > 8 ? row[8].toString() : existing.status,
+                  saleDate: DateTime.tryParse(row[1].toString()) ?? existing.saleDate,
                   isSynced: true,
-                  saleDate: DateTime.tryParse(row[1].toString()) ?? DateTime.now(),
-                  status: row.length > 8 ? row[8].toString() : 'Entregado',
+                  googleEventId: eventIdFromSheet ?? existing.googleEventId,
                 );
-              }
-              await box.put(orderToSave.id, orderToSave);
+                orderToSave = OrderModel.fromEntity(updatedEntity);
+            } else {
+                orderToSave = OrderModel(
+                id: id.isNotEmpty ? id : const Uuid().v4(),
+                customerName: row[2].toString(),
+                items: [],
+                totalPrice: double.tryParse(row[4].toString()) ?? 0.0,
+                pendingBalance: double.tryParse(row[6].toString()) ?? 0.0,
+                deliveryDate: DateTime.tryParse(row[7].toString()) ?? DateTime.now(),
+                isSynced: true,
+                saleDate: DateTime.tryParse(row[1].toString()) ?? DateTime.now(),
+                status: row.length > 8 ? row[8].toString() : 'Entregado',
+                googleEventId: eventIdFromSheet,
+              );
             }
+            await box.put(orderToSave.id, orderToSave);
           }
-        }
-      } catch (e) {
-        if (_isAuthError(e)) rethrow;
-        if (_isMissingSheetError(e)) {
-          print('Hoja Pedidos no encontrada, omitiendo importación');
-        } else {
-          print('Error importando pedidos: $e');
         }
       }
       
-      print('Importación desde Sheets completada');
+      print('Importación atómica desde Sheets completada');
     } catch (e) {
-      if (_isAuthError(e)) {
-        print('Auth error detected in importFromSheets: $e');
-        await logout();
-        throw AuthException('Tu sesión de Google ha caducado. Por favor, desconéctate y vuelve a conectar tu cuenta.');
-      }
-      print('Error en importación general: $e');
+      print('Error durante fase local de importación: $e');
       rethrow;
     }
   }
+
+  // --- Calendar Methods ---
 
   // --- Calendar Methods ---
 
@@ -812,7 +1230,14 @@ class GoogleCloudService {
     try {
       final res = await calendarApi.events.insert(event, 'primary');
       return res.id;
-    } catch (e) { print('Error creando evento: $e'); return null; }
+    } catch (e) { 
+      if (_isAuthError(e)) {
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado. Por favor, vuelve a iniciar sesión.');
+      }
+      print('Error creando evento: $e'); 
+      throw Exception('Fallo de Red: No se pudo crear evento en Calendar. ($e)');
+    }
   }
 
   Future<bool> updateCalendarEvent(String eventId, OrderEntity order) async {
@@ -828,13 +1253,17 @@ class GoogleCloudService {
       await calendarApi.events.update(event, 'primary', eventId);
       return true;
     } catch (e) { 
+      if (_isAuthError(e)) {
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado. Por favor, vuelve a iniciar sesión.');
+      }
       final errorStr = e.toString();
       if (errorStr.contains('404') || errorStr.contains('notFound')) {
         print('LOG: Evento no encontrado en Google Calendar (404). Marcando para re-creación.');
         return false;
       }
-      print('Error editando evento: $e');
-      return false; // For other errors, we also return false but log them
+      print('Error editando evento en Calendar: $e');
+      throw Exception('Fallo de Red: No se pudo actualizar evento en Calendar. ($e)');
     }
   }
 
@@ -843,24 +1272,55 @@ class GoogleCloudService {
     final calendarApi = calendar.CalendarApi(_client!);
     try {
       await calendarApi.events.delete('primary', eventId);
-    } catch (e) { print('Error borrando evento: $e'); }
+    } catch (e) { 
+       if (_isAuthError(e)) {
+        await logout();
+        throw AuthException('Tu sesión de Google ha caducado. Por favor, vuelve a iniciar sesión.');
+      }
+      print('Error borrando evento: $e'); 
+      throw Exception('Fallo de Red: No se pudo borrar evento en Calendar. ($e)');
+    }
   }
 
-  Future<Map<String, int>> syncAllCalendarEvents(List<OrderEntity> orders) async {
+  Future<Map<String, dynamic>> syncAllCalendarEvents(List<OrderEntity> orders) async {
     int created = 0, updated = 0, errors = 0;
+    List<OrderEntity> syncedOrders = [];
+
     for (var o in orders) {
-      if (o.googleEventId == null) {
-        final id = await createCalendarEvent(o);
-        if (id != null) created++; else errors++;
-      } else {
-        final ok = await updateCalendarEvent(o.googleEventId!, o);
-        if (ok) updated++; else {
+      try {
+        if (o.googleEventId == null) {
           final id = await createCalendarEvent(o);
-          if (id != null) created++; else errors++;
+          if (id != null) {
+            created++; 
+            syncedOrders.add(o.copyWith(googleEventId: id));
+          } else {
+            errors++;
+          }
+        } else {
+          final ok = await updateCalendarEvent(o.googleEventId!, o);
+          if (ok) {
+            updated++;
+            syncedOrders.add(o);
+          } else {
+            final id = await createCalendarEvent(o);
+            if (id != null) {
+              created++;
+              syncedOrders.add(o.copyWith(googleEventId: id));
+            } else {
+              errors++;
+            }
+          }
+        }
+        // Rate limiting
+        await Future.delayed(const Duration(milliseconds: 250));
+      } catch (e) {
+        errors++;
+        if (_isAuthError(e)) {
+          rethrow;
         }
       }
     }
-    return {'created': created, 'updated': updated, 'errors': errors};
+    return {'created': created, 'updated': updated, 'errors': errors, 'syncedOrders': syncedOrders};
   }
 
   // --- Helper Methods ---

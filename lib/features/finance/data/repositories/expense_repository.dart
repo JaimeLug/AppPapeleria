@@ -40,6 +40,7 @@ class ExpenseRepository {
       }
     } catch (e) {
       print('LOG: Error syncing expense: $e');
+      throw Exception('Guardado LOCALMENTE, pero falló la subida a Nube.');
     }
   }
 
@@ -63,6 +64,7 @@ class ExpenseRepository {
       }
     } catch (e) {
       print('LOG: Error deleting expense from cloud: $e');
+      throw Exception('Fallo de Red: Gasto eliminado localmente, pero no en la Nube.');
     }
   }
 }
