@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_theme.dart';
 import '../../../inventory/presentation/pages/product_management_page.dart';
+import '../../../inventory/presentation/pages/inventory_screen.dart';
 import '../../../sales/presentation/pages/sales_page.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -54,14 +55,16 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     : _selectedIndex == 2
                         ? const ProductManagementPage()
                         : _selectedIndex == 3
-                            ? const SalesPage()
+                            ? const InventoryScreen()
                             : _selectedIndex == 4
-                                ? const AgendaPage()
+                                ? const SalesPage()
                                 : _selectedIndex == 5
-                                    ? const ExpensesPage()
+                                    ? const AgendaPage()
                                     : _selectedIndex == 6
-                                        ? const SettingsPage()
-                                        : const Center(child: Text('Coming Soon')),
+                                        ? const ExpensesPage()
+                                        : _selectedIndex == 7
+                                            ? const SettingsPage()
+                                            : const Center(child: Text('Coming Soon')),
           ),
         ],
       ),
@@ -99,7 +102,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 
   void _navigateTo(int index) {
-    if (index == 5) {
+    if (index == 6) {
       final settings = ref.read(settingsProvider);
       if (settings.securityPin != null && settings.securityPin!.isNotEmpty) {
         _showPinDialog(index, settings.securityPin!);
@@ -172,11 +175,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           _SidebarItem(icon: Icons.dashboard_outlined, label: 'Dashboard', isSelected: _selectedIndex == 0, onTap: () => _navigateTo(0)),
           _SidebarItem(icon: Icons.list_alt_outlined, label: 'Pedidos', isSelected: _selectedIndex == 1, onTap: () => _navigateTo(1)),
           _SidebarItem(icon: Icons.inventory_2_outlined, label: 'Productos', isSelected: _selectedIndex == 2, onTap: () => _navigateTo(2)),
-          _SidebarItem(icon: Icons.shopping_bag_outlined, label: 'Ventas', isSelected: _selectedIndex == 3, onTap: () => _navigateTo(3)),
-          _SidebarItem(icon: Icons.calendar_today_outlined, label: 'Agenda', isSelected: _selectedIndex == 4, onTap: () => _navigateTo(4)),
-          _SidebarItem(icon: Icons.attach_money, label: 'Finanzas', isSelected: _selectedIndex == 5, onTap: () => _navigateTo(5)),
+          _SidebarItem(icon: Icons.inventory, label: 'Inventario', isSelected: _selectedIndex == 3, onTap: () => _navigateTo(3)),
+          _SidebarItem(icon: Icons.shopping_bag_outlined, label: 'Ventas', isSelected: _selectedIndex == 4, onTap: () => _navigateTo(4)),
+          _SidebarItem(icon: Icons.calendar_today_outlined, label: 'Agenda', isSelected: _selectedIndex == 5, onTap: () => _navigateTo(5)),
+          _SidebarItem(icon: Icons.attach_money, label: 'Finanzas', isSelected: _selectedIndex == 6, onTap: () => _navigateTo(6)),
           const Spacer(),
-          _SidebarItem(icon: Icons.settings_outlined, label: 'Configuración', isSelected: _selectedIndex == 6, onTap: () => _navigateTo(6)),
+          _SidebarItem(icon: Icons.settings_outlined, label: 'Configuración', isSelected: _selectedIndex == 7, onTap: () => _navigateTo(7)),
           const SizedBox(height: 24),
         ],
       ),

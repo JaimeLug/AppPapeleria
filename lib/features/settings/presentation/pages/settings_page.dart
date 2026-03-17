@@ -8,9 +8,12 @@ import 'package:app_papeleria/features/finance/data/models/expense_model.dart';
 import 'package:app_papeleria/features/finance/data/models/income_model.dart';
 import 'package:app_papeleria/features/finance/presentation/providers/finance_provider.dart';
 import 'package:app_papeleria/features/inventory/data/models/product_model.dart';
+import 'package:app_papeleria/features/inventory/data/models/inventory_item_model.dart';
+import 'package:app_papeleria/features/inventory/data/models/stock_movement_model.dart';
 import 'package:app_papeleria/features/inventory/presentation/providers/product_providers.dart';
 import 'package:app_papeleria/features/sales/data/models/customer_model.dart';
 import 'package:app_papeleria/features/sales/data/models/order_model.dart';
+import 'package:app_papeleria/features/sales/domain/entities/order.dart';
 import 'package:app_papeleria/features/sales/presentation/providers/customer_provider.dart';
 import 'package:app_papeleria/features/sales/presentation/providers/orders_provider.dart';
 import 'package:app_papeleria/features/settings/presentation/providers/settings_provider.dart';
@@ -376,13 +379,13 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                 final result = await googleService.syncAllCalendarEvents(pendingOrders);
                                 
                                 // Update orders with new event IDs
-                                for (final order in pendingOrders) {
-                                  if (order.googleEventId != null) {
-                                    await ordersBox.put(order.id, order);
-                                  }
+                                final List<OrderEntity> syncedOrders = result['syncedOrders'] ?? [];
+                                for (final order in syncedOrders) {
+                                  // Ensure we save back using OrderModel format
+                                  await ordersBox.put(order.id, OrderModel.fromEntity(order));
                                 }
                                 
-                                if (mounted) {
+                                if (context.mounted) {
                                   ScaffoldMessenger.of(context).clearSnackBars();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
@@ -393,7 +396,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                                   );
                                 }
                               } catch (e) {
-                                if (mounted) {
+                                if (context.mounted) {
                                   ScaffoldMessenger.of(context).clearSnackBars();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
@@ -424,6 +427,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                           _buildStatItem('Pedidos', Hive.box<OrderModel>('orders').length.toString()),
                           _buildStatItem('Clientes', Hive.box<CustomerModel>('customers').length.toString()),
                           _buildStatItem('Productos', Hive.box<ProductModel>('products').length.toString()),
+                          _buildStatItem('Inventario', Hive.box<InventoryItemModel>('inventoryItems').length.toString()),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -445,9 +449,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               onPressed: () async {
                                 try {
                                   await notifier.exportBackup();
-                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Backup guardado exitosamente')));
+                                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Backup guardado exitosamente')));
                                 } catch (e) {
-                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
                                 }
                               },
                             ),
@@ -460,12 +464,12 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                               onPressed: () async {
                                 try {
                                   await notifier.importBackup();
-                                  if (mounted) {
+                                  if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Backup restaurado. Reiniciando vistas...')));
                                     // Optional: Trigger full app refresh if needed, but providers notify listeners so it should update.
                                   } 
                                 } catch (e) {
-                                  if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al importar: $e')));
+                                  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al importar: $e')));
                                 }
                               },
                             ),
@@ -553,7 +557,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -597,222 +601,53 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   }
 
   void _showPinDialog(BuildContext context, SettingsNotifier notifier, String? currentPin) {
-    bool isEditing = currentPin != null && currentPin.isNotEmpty;
-    final controller = TextEditingController(); // For new PIN
-    final oldController = TextEditingController(); // For confirming old PIN if removing
-    
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isEditing ? 'Gestionar PIN' : 'Establecer PIN'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-             if (isEditing) ...[
-               const Text('Acciones disponibles:'),
-               const SizedBox(height: 16),
-               SizedBox(
-                 width: double.infinity,
-                 child: OutlinedButton(
-                   onPressed: () {
-                     Navigator.pop(context);
-                     _showRemovePinDialog(context, notifier);
-                   },
-                   style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                   child: const Text('Eliminar PIN'),
-                 ),
-               ),
-               const SizedBox(height: 16),
-               const Text('O cambiar PIN:'),
-             ],
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              maxLength: 4,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Nuevo PIN (4 dígitos)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () {
-              if (controller.text.length == 4) {
-                notifier.setSecurityPin(controller.text);
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Actualizado')));
-              }
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
+      builder: (context) => _PinDialogBody(
+        notifier: notifier,
+        currentPin: currentPin,
+        onRemove: () {
+          Navigator.pop(context);
+          _showRemovePinDialog(context, notifier);
+        },
       ),
     );
   }
   
   void _showRemovePinDialog(BuildContext context, SettingsNotifier notifier) {
-    final controller = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar PIN'),
-        content: TextField(
-          controller: controller,
-          keyboardType: TextInputType.number,
-          maxLength: 4,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Ingresa el PIN actual',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          ElevatedButton(
-             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () {
-               try {
-                 notifier.removeSecurityPin(controller.text);
-                 Navigator.pop(context);
-                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Eliminado')));
-               } catch (e) {
-                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Incorrecto')));
-               }
-            },
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+      builder: (context) => _RemovePinDialogBody(notifier: notifier),
     );
   }
 
   void _showResetDialog(BuildContext context, SettingsNotifier notifier) {
-    final pinController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset de Fábrica', style: TextStyle(color: Colors.red)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Esta acción BORRARÁ TODOS LOS PEDIDOS, CLIENTES Y DATOS. No se puede deshacer.'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: pinController,
-              decoration: const InputDecoration(
-                labelText: 'PIN de Desarrollador',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              try {
-                await notifier.factoryReset(pinController.text);
-                if (context.mounted) {
-                  Navigator.pop(context); // Close dialog
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sistema restablecido de fábrica')));
-                }
-              } catch (e) {
-                if (context.mounted) {
-                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Incorrecto. Acción cancelada.')));
-                }
-              }
-            },
-            child: const Text('BORRAR TODO', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
+      builder: (context) => _ResetDialogBody(notifier: notifier),
     );
   }
 
   void _showGoogleCredentialsDialog(BuildContext context, SettingsNotifier notifier, AppSettings settings) {
-      final pinController = TextEditingController();
-      
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Configuración Cloud'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Introduce PIN de Desarrollador (2308)'),
-              TextField(
-                controller: pinController,
-                obscureText: true,
-                keyboardType: TextInputType.number,
-                 decoration: const InputDecoration(labelText: 'PIN'),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-            ElevatedButton(
-              onPressed: () {
-                if (pinController.text == '2308') {
-                  Navigator.pop(context);
-                  _showGoogleConfigForm(context, notifier, settings);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Incorrecto')));
-                }
-              },
-              child: const Text('Acceder'),
-            ),
-          ],
-        ),
-      );
+    showDialog(
+      context: context,
+      builder: (context) => _GoogleCredentialsDialogBody(
+        notifier: notifier,
+        settings: settings,
+        onAuthenticated: () {
+          Navigator.pop(context);
+          _showGoogleConfigForm(context, notifier, settings);
+        },
+      ),
+    );
   }
 
   void _showGoogleConfigForm(BuildContext context, SettingsNotifier notifier, AppSettings settings) {
-    final clientIdController = TextEditingController(text: settings.googleClientId);
-    final clientSecretController = TextEditingController(text: settings.googleClientSecret);
-
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Credenciales de Google Cloud'),
-        content: SizedBox(
-          width: 400,
-          child: Column(
-             mainAxisSize: MainAxisSize.min,
-             children: [
-               const Text('Introduce el Client ID y Client Secret de tu proyecto en Google Cloud Console.'),
-                const SizedBox(height: 16),
-               TextField(
-                 controller: clientIdController,
-                 decoration: const InputDecoration(labelText: 'Client ID', border: OutlineInputBorder()),
-               ),
-               const SizedBox(height: 16),
-               TextField(
-                 controller: clientSecretController,
-                 decoration: const InputDecoration(labelText: 'Client Secret', border: OutlineInputBorder()),
-                 obscureText: true, 
-               ),
-             ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () {
-              notifier.updateGoogleConfig(
-                clientId: clientIdController.text,
-                clientSecret: clientSecretController.text,
-              );
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Credenciales guardadas')));
-            },
-             child: const Text('Guardar'),
-          ),
-        ],
+      builder: (context) => _GoogleConfigFormBody(
+        notifier: notifier,
+        settings: settings,
       ),
     );
   }
@@ -894,7 +729,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
 
   Widget _syncOption(BuildContext context, {required IconData icon, required Color color, required String title, required String subtitle, required VoidCallback onTap}) {
     return ListTile(
-      leading: CircleAvatar(backgroundColor: color.withOpacity(0.1), child: Icon(icon, color: color)),
+      leading: CircleAvatar(backgroundColor: color.withValues(alpha: 0.1), child: Icon(icon, color: color)),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
       subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
       trailing: const Icon(Icons.chevron_right),
@@ -936,11 +771,49 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       if (mode == 'incremental_export' || mode == 'overwrite_cloud') {
         final overwrite = mode == 'overwrite_cloud';
         
+        if (overwrite) {
+          final totalLocalItems = 
+            Hive.box<OrderModel>('orders').length +
+            Hive.box<ExpenseModel>('expenses').length +
+            Hive.box<IncomeModel>('incomes').length +
+            Hive.box<CustomerModel>('customers').length +
+            Hive.box<ProductModel>('products').length +
+            Hive.box<InventoryItemModel>('inventoryItems').length +
+            Hive.box<StockMovementModel>('stockMovements').length +
+            settings.productCategories.length;
+            
+          if (totalLocalItems == 0) {
+            if (context.mounted) {
+              Navigator.pop(context); // Close progress dialog
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  title: const Row(
+                    children: [
+                      Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 32),
+                      SizedBox(width: 12),
+                      Text('Operación Abortada'),
+                    ]
+                  ),
+                  content: const Text('No hay datos locales. Esta acción borraría tu copia en Google Sheets dejándola completamente en blanco. Si deseas bajar tus datos de la nube, usa "Restauración Total".'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('ENTENDIDO'))
+                  ],
+                ),
+              );
+            }
+            return;
+          }
+        }
+
         await googleService.bulkExportOrders(sheetId, Hive.box<OrderModel>('orders').values.toList(), overwrite: overwrite);
         await googleService.bulkExportExpenses(sheetId, Hive.box<ExpenseModel>('expenses').values.toList(), overwrite: overwrite);
         await googleService.bulkExportIncomes(sheetId, Hive.box<IncomeModel>('incomes').values.toList(), overwrite: overwrite);
         await googleService.bulkExportCustomers(sheetId, Hive.box<CustomerModel>('customers').values.toList(), overwrite: overwrite);
         await googleService.bulkExportProducts(sheetId, Hive.box<ProductModel>('products').values.toList(), overwrite: overwrite);
+        await googleService.bulkExportInventory(sheetId, Hive.box<InventoryItemModel>('inventoryItems').values.toList(), overwrite: overwrite);
+        await googleService.bulkExportStockMovements(sheetId, Hive.box<StockMovementModel>('stockMovements').values.toList(), overwrite: overwrite);
         await googleService.bulkExportCategories(sheetId, settings.productCategories, overwrite: overwrite);
       } else {
         final replaceLocal = mode == 'total_restore';
@@ -992,9 +865,9 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
+                    color: Colors.orange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                    border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
                   ),
                   child: const Row(
                     children: [
@@ -1075,3 +948,342 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 }
+
+class _PinDialogBody extends StatefulWidget {
+  final SettingsNotifier notifier;
+  final String? currentPin;
+  final VoidCallback onRemove;
+
+  const _PinDialogBody({required this.notifier, this.currentPin, required this.onRemove});
+
+  @override
+  State<_PinDialogBody> createState() => _PinDialogBodyState();
+}
+
+class _PinDialogBodyState extends State<_PinDialogBody> {
+  late final TextEditingController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    bool isEditing = widget.currentPin != null && widget.currentPin!.isNotEmpty;
+
+    return AlertDialog(
+      title: Text(isEditing ? 'Gestionar PIN' : 'Establecer PIN'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+           if (isEditing) ...[
+             const Text('Acciones disponibles:'),
+             const SizedBox(height: 16),
+             SizedBox(
+               width: double.infinity,
+               child: OutlinedButton(
+                 onPressed: widget.onRemove,
+                 style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                 child: const Text('Eliminar PIN'),
+               ),
+             ),
+             const SizedBox(height: 16),
+             const Text('O cambiar PIN:'),
+           ],
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            maxLength: 4,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'Nuevo PIN (4 dígitos)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        ElevatedButton(
+          onPressed: () {
+            if (controller.text.length == 4) {
+              widget.notifier.setSecurityPin(controller.text);
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Actualizado')));
+            }
+          },
+          child: const Text('Guardar'),
+        ),
+      ],
+    );
+  }
+}
+
+class _RemovePinDialogBody extends StatefulWidget {
+  final SettingsNotifier notifier;
+
+  const _RemovePinDialogBody({required this.notifier});
+
+  @override
+  State<_RemovePinDialogBody> createState() => _RemovePinDialogBodyState();
+}
+
+class _RemovePinDialogBodyState extends State<_RemovePinDialogBody> {
+  late final TextEditingController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Eliminar PIN'),
+      content: TextField(
+        controller: controller,
+        keyboardType: TextInputType.number,
+        maxLength: 4,
+        obscureText: true,
+        decoration: const InputDecoration(
+          labelText: 'Ingresa el PIN actual',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        ElevatedButton(
+           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          onPressed: () {
+             try {
+               widget.notifier.removeSecurityPin(controller.text);
+               Navigator.pop(context);
+               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Eliminado')));
+             } catch (e) {
+               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Incorrecto')));
+             }
+          },
+          child: const Text('Eliminar'),
+        ),
+      ],
+    );
+  }
+}
+
+class _ResetDialogBody extends StatefulWidget {
+  final SettingsNotifier notifier;
+
+  const _ResetDialogBody({required this.notifier});
+
+  @override
+  State<_ResetDialogBody> createState() => _ResetDialogBodyState();
+}
+
+class _ResetDialogBodyState extends State<_ResetDialogBody> {
+  late final TextEditingController pinController;
+
+  @override
+  void initState() {
+    super.initState();
+    pinController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    pinController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Reset de Fábrica', style: TextStyle(color: Colors.red)),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Esta acción BORRARÁ TODOS LOS PEDIDOS, CLIENTES Y DATOS. No se puede deshacer.'),
+          const SizedBox(height: 16),
+          TextField(
+            controller: pinController,
+            decoration: const InputDecoration(
+              labelText: 'PIN de Desarrollador',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+          onPressed: () async {
+            try {
+              await widget.notifier.factoryReset(pinController.text);
+              if (context.mounted) {
+                Navigator.pop(context); // Close dialog
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sistema restablecido de fábrica')));
+              }
+            } catch (e) {
+              if (context.mounted) {
+                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Incorrecto. Acción cancelada.')));
+              }
+            }
+          },
+          child: const Text('BORRAR TODO', style: TextStyle(color: Colors.white)),
+        ),
+      ],
+    );
+  }
+}
+
+class _GoogleCredentialsDialogBody extends StatefulWidget {
+  final SettingsNotifier notifier;
+  final AppSettings settings;
+  final VoidCallback onAuthenticated;
+
+  const _GoogleCredentialsDialogBody({
+    required this.notifier,
+    required this.settings,
+    required this.onAuthenticated,
+  });
+
+  @override
+  State<_GoogleCredentialsDialogBody> createState() => _GoogleCredentialsDialogBodyState();
+}
+
+class _GoogleCredentialsDialogBodyState extends State<_GoogleCredentialsDialogBody> {
+  late final TextEditingController pinController;
+
+  @override
+  void initState() {
+    super.initState();
+    pinController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    pinController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Configuración Cloud'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Introduce PIN de Desarrollador (2308)'),
+          TextField(
+            controller: pinController,
+            obscureText: true,
+            keyboardType: TextInputType.number,
+             decoration: const InputDecoration(labelText: 'PIN'),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        ElevatedButton(
+          onPressed: () {
+            if (pinController.text == '2308') {
+              widget.onAuthenticated();
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Incorrecto')));
+            }
+          },
+          child: const Text('Acceder'),
+        ),
+      ],
+    );
+  }
+}
+
+class _GoogleConfigFormBody extends StatefulWidget {
+  final SettingsNotifier notifier;
+  final AppSettings settings;
+
+  const _GoogleConfigFormBody({
+    required this.notifier,
+    required this.settings,
+  });
+
+  @override
+  State<_GoogleConfigFormBody> createState() => _GoogleConfigFormBodyState();
+}
+
+class _GoogleConfigFormBodyState extends State<_GoogleConfigFormBody> {
+  late final TextEditingController clientIdController;
+  late final TextEditingController clientSecretController;
+
+  @override
+  void initState() {
+    super.initState();
+    clientIdController = TextEditingController(text: widget.settings.googleClientId);
+    clientSecretController = TextEditingController(text: widget.settings.googleClientSecret);
+  }
+
+  @override
+  void dispose() {
+    clientIdController.dispose();
+    clientSecretController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Credenciales de Google Cloud'),
+      content: SizedBox(
+        width: 400,
+        child: Column(
+           mainAxisSize: MainAxisSize.min,
+           children: [
+             const Text('Introduce el Client ID y Client Secret de tu proyecto en Google Cloud Console.'),
+              const SizedBox(height: 16),
+             TextField(
+               controller: clientIdController,
+               decoration: const InputDecoration(labelText: 'Client ID', border: OutlineInputBorder()),
+             ),
+             const SizedBox(height: 16),
+             TextField(
+               controller: clientSecretController,
+               decoration: const InputDecoration(labelText: 'Client Secret', border: OutlineInputBorder()),
+               obscureText: true, 
+             ),
+           ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        ElevatedButton(
+          onPressed: () {
+            widget.notifier.updateGoogleConfig(
+              clientId: clientIdController.text,
+              clientSecret: clientSecretController.text,
+            );
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Credenciales guardadas')));
+          },
+           child: const Text('Guardar'),
+        ),
+      ],
+    );
+  }
+}
+

@@ -16,6 +16,26 @@ class ProductRepositoryImpl implements ProductRepository {
     try {
       final productModel = ProductModel.fromEntity(product);
       await productBox.put(productModel.id, productModel);
+      
+      try {
+        final googleService = GoogleCloudService();
+        if (googleService.isAuthenticated) {
+           final settingsBox = Hive.box('settings');
+           final settingsMap = settingsBox.get('appSettings');
+           if (settingsMap != null) {
+             final settings = Map<String, dynamic>.from(settingsMap);
+             if (settings['syncSheetsEnabled'] == true && settings['googleSheetId'] != null) {
+               final sheetId = settings['googleSheetId'] as String;
+               if (sheetId.isNotEmpty) {
+                 await googleService.appendProductToSheet(sheetId, product);
+               }
+             }
+           }
+        }
+      } catch (e) {
+        print('Error sincronizando producto nuevo a la nube: $e');
+      }
+
       return const Right(null);
     } catch (e) {
       return Left(CacheFailure(e.toString()));

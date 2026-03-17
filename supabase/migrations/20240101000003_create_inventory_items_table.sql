@@ -7,6 +7,7 @@ create table if not exists public.inventory_items (
   min_quantity integer not null default 5,
   location text not null default 'Tienda',
   category text not null,
+  is_deleted boolean default false not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
   user_id uuid references auth.users(id)

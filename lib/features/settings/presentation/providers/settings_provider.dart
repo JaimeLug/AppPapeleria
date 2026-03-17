@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:file_picker/file_picker.dart';
-// ignore: unused_import
+import '../../../../core/services/google_cloud_service.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 
@@ -289,6 +289,28 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   }
 
   // --- Developer Tools ---
+
+  Future<void> deleteCategory(String categoryName) async {
+    try {
+      final googleService = GoogleCloudService();
+      if (googleService.isAuthenticated) {
+         final settingsBox = Hive.box('settings');
+         final settingsMap = settingsBox.get('appSettings');
+         if (settingsMap != null) {
+           final settingsMapDynamic = Map<String, dynamic>.from(settingsMap);
+           if (settingsMapDynamic['syncSheetsEnabled'] == true && settingsMapDynamic['googleSheetId'] != null) {
+             final sheetId = settingsMapDynamic['googleSheetId'] as String;
+             if (sheetId.isNotEmpty) {
+               print('Intentando eliminar categoría $categoryName de Cloud...');
+               await googleService.deleteRowById(sheetId, 'Categorías', categoryName);
+             }
+           }
+         }
+      }
+    } catch (e) {
+      print('Error al intentar borrar categoría de la nube: $e');
+    }
+  }
 
   Future<void> exportBackup() async {
     try {

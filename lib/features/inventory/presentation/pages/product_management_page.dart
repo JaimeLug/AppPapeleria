@@ -133,36 +133,72 @@ class _ProductManagementPageState extends ConsumerState<ProductManagementPage> {
   }
 
   void _showProductFormDialog(BuildContext context, WidgetRef ref, {ProductEntity? productToEdit}) {
-    final isEditing = productToEdit != null;
-    final nameController = TextEditingController(text: productToEdit?.name);
-    final priceController = TextEditingController(text: productToEdit?.basePrice.toString());
-    final extraController = TextEditingController(text: productToEdit?.extraCost.toString());
-    final notesController = TextEditingController(text: productToEdit?.notes);
-    
-    // For Autocomplete
-    String selectedCategory = productToEdit?.category ?? '';
-    final TextEditingController categoryTextController = TextEditingController(text: selectedCategory);
+    showDialog(
+      context: context,
+      builder: (context) => _ProductFormDialogBody(productToEdit: productToEdit),
+    );
+  }
+}
 
-    // Fetch existing categories from the provider state if possible, or extract from current list
-    // A simple way is to read the current list and extract unique categories
+class _ProductFormDialogBody extends ConsumerStatefulWidget {
+  final ProductEntity? productToEdit;
+
+  const _ProductFormDialogBody({this.productToEdit});
+
+  @override
+  ConsumerState<_ProductFormDialogBody> createState() => _ProductFormDialogBodyState();
+}
+
+class _ProductFormDialogBodyState extends ConsumerState<_ProductFormDialogBody> {
+  late final TextEditingController nameController;
+  late final TextEditingController priceController;
+  late final TextEditingController extraController;
+  late final TextEditingController notesController;
+  late final TextEditingController categoryTextController;
+  late String selectedCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    nameController = TextEditingController(text: widget.productToEdit?.name);
+    priceController = TextEditingController(text: widget.productToEdit?.basePrice.toString());
+    extraController = TextEditingController(text: widget.productToEdit?.extraCost.toString());
+    notesController = TextEditingController(text: widget.productToEdit?.notes);
+
+    selectedCategory = widget.productToEdit?.category ?? '';
+    categoryTextController = TextEditingController(text: selectedCategory);
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    priceController.dispose();
+    extraController.dispose();
+    notesController.dispose();
+    categoryTextController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEditing = widget.productToEdit != null;
+
     final productList = ref.read(productListProvider).value ?? [];
     final existingCategories = productList.map((p) => p.category).toSet().toList();
     if (existingCategories.isEmpty) existingCategories.add('General');
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Theme.of(context).cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Text(isEditing ? 'Editar Producto' : 'Nuevo Producto', style: Theme.of(context).textTheme.titleLarge),
-        content: SingleChildScrollView(
-          child: SizedBox(
-            width: 400,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 8),
+    return AlertDialog(
+      backgroundColor: Theme.of(context).cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      title: Text(isEditing ? 'Editar Producto' : 'Nuevo Producto', style: Theme.of(context).textTheme.titleLarge),
+      content: SingleChildScrollView(
+        child: SizedBox(
+          width: 400,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 8),
               const SizedBox(height: 16),
               _CustomTextField(controller: nameController, label: 'Nombre'),
               const SizedBox(height: 16),
@@ -186,117 +222,124 @@ class _ProductManagementPageState extends ConsumerState<ProductManagementPage> {
                 ],
               ),
               const SizedBox(height: 16),
-              // Autocomplete for Category
-              // Autocomplete for Category
-               Autocomplete<String>(
-                    optionsViewBuilder: (context, onSelected, options) {
-                      return Align(
-                        alignment: Alignment.topLeft,
-                        child: Material(
-                          elevation: 4.0,
-                          color: Colors.white,
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
-                          ),
-                          child: SizedBox(
-                            width: 400, // Matching the form width
-                            child: ListView.builder(
-                              padding: EdgeInsets.zero,
-                              shrinkWrap: true,
-                              itemCount: options.length,
-                              itemBuilder: (BuildContext context, int index) {
-                                final String option = options.elementAt(index);
-                                return InkWell(
-                                  onTap: () {
-                                    onSelected(option);
-                                  },
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Text(option),
-                                  ),
-                                );
+              Autocomplete<String>(
+                optionsViewBuilder: (context, onSelected, options) {
+                  return Align(
+                    alignment: Alignment.topLeft,
+                    child: Material(
+                      elevation: 4.0,
+                      color: Colors.white,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+                      ),
+                      child: SizedBox(
+                        width: 400,
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          shrinkWrap: true,
+                          itemCount: options.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            final String option = options.elementAt(index);
+                            return InkWell(
+                              onTap: () {
+                                onSelected(option);
                               },
-                            ),
-                          ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Text(option),
+                              ),
+                            );
+                          },
                         ),
-                      );
-                    },
-                    initialValue: TextEditingValue(text: selectedCategory),
-                    optionsBuilder: (TextEditingValue textEditingValue) {
-                      if (textEditingValue.text == '') {
-                        return const Iterable<String>.empty();
-                      }
-                      return existingCategories.where((String option) {
-                        return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                      });
-                    },
-                    onSelected: (String selection) {
-                      selectedCategory = selection;
-                      categoryTextController.text = selection;
-                    },
-                    fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
-                      // Ensure controller matches current state without adding duplicate listeners
-                      if (textEditingController.text != selectedCategory) {
-                        textEditingController.text = selectedCategory;
-                      }
-                      
-                      return TextField(
-                        controller: textEditingController,
-                        focusNode: focusNode,
-                        onChanged: (value) => selectedCategory = value,
-                        decoration: const InputDecoration(
-                          labelText: 'Categoría',
-                          contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                        ),
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                  );
+                },
+                initialValue: TextEditingValue(text: selectedCategory),
+                optionsBuilder: (TextEditingValue textEditingValue) {
+                  if (textEditingValue.text == '') {
+                    return const Iterable<String>.empty();
+                  }
+                  return existingCategories.where((String option) {
+                    return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                  });
+                },
+                onSelected: (String selection) {
+                  selectedCategory = selection;
+                  categoryTextController.text = selection;
+                },
+                fieldViewBuilder: (context, textEditingController, focusNode, onFieldSubmitted) {
+                  if (textEditingController.text != selectedCategory) {
+                    textEditingController.text = selectedCategory;
+                  }
+                  
+                  return TextField(
+                    controller: textEditingController,
+                    focusNode: focusNode,
+                    onChanged: (value) => selectedCategory = value,
+                    decoration: const InputDecoration(
+                      labelText: 'Categoría',
+                      contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    ),
+                  );
+                },
+              ),
               const SizedBox(height: 16),
-               _CustomTextField(
+              _CustomTextField(
                 controller: notesController, 
                 label: 'Notas (Opcional)',
                 maxLines: 3,
               ),
-              ], // End Column children
-            ), // End SizedBox
-           ), // End Column (removed from previous replace but effectively wrapping content now properly)
+            ],
+          ),
         ),
-        actionsPadding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancelar', style: TextStyle(color: AppTheme.bodyColor)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final name = nameController.text.trim();
-              if (name.isEmpty) return; // Basic validation
-              
-              final price = double.tryParse(priceController.text) ?? 0.0;
-              final extra = double.tryParse(extraController.text) ?? 0.0;
-              final category = selectedCategory.isEmpty ? 'General' : selectedCategory;
-              final notes = notesController.text.trim();
-
-              final newProduct = ProductEntity(
-                id: isEditing ? productToEdit.id : const Uuid().v4(),
-                name: name,
-                basePrice: price,
-                extraCost: extra,
-                category: category,
-                notes: notes.isNotEmpty ? notes : null,
-              );
-              
-              if (isEditing) {
-                ref.read(productListProvider.notifier).updateProduct(newProduct, ref);
-              } else {
-                ref.read(productListProvider.notifier).addProduct(newProduct, ref);
-              }
-              Navigator.pop(context);
-            },
-            child: Text(isEditing ? 'Actualizar' : 'Guardar'),
-          ),
-        ],
       ),
+      actionsPadding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Cancelar', style: TextStyle(color: AppTheme.bodyColor)),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            final name = nameController.text.trim();
+            if (name.isEmpty) return;
+            
+            final price = double.tryParse(priceController.text) ?? 0.0;
+            final extra = double.tryParse(extraController.text) ?? 0.0;
+            final category = selectedCategory.isEmpty ? 'General' : selectedCategory;
+            final notes = notesController.text.trim();
+
+            final newProduct = ProductEntity(
+              id: isEditing ? widget.productToEdit!.id : const Uuid().v4(),
+              name: name,
+              basePrice: price,
+              extraCost: extra,
+              category: category,
+              notes: notes.isNotEmpty ? notes : null,
+            );
+            
+            try {
+              if (isEditing) {
+                await ref.read(productListProvider.notifier).updateProduct(newProduct, ref);
+              } else {
+                await ref.read(productListProvider.notifier).addProduct(newProduct, ref);
+              }
+              if (context.mounted) Navigator.pop(context);
+            } catch (e) {
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(e.toString().replaceAll('Exception: ', '')),
+                  backgroundColor: Colors.orange,
+                  duration: const Duration(seconds: 4),
+                ));
+              }
+            }
+          },
+          child: Text(isEditing ? 'Actualizar' : 'Guardar'),
+        ),
+      ],
     );
   }
 }
@@ -441,7 +484,19 @@ class _ProductCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 IconButton(
                   icon: const Icon(Icons.delete_outline, color: AppTheme.primaryColor, size: 20),
-                  onPressed: () => ref.read(productListProvider.notifier).deleteProduct(product.id),
+                  onPressed: () async {
+                    try {
+                      await ref.read(productListProvider.notifier).deleteProduct(product.id);
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: Text(e.toString().replaceAll('Exception: ', '')),
+                          backgroundColor: Colors.orange,
+                          duration: const Duration(seconds: 4),
+                        ));
+                      }
+                    }
+                  },
                   tooltip: 'Eliminar',
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),

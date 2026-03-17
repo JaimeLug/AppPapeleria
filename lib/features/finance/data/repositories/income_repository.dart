@@ -38,6 +38,7 @@ class IncomeRepository {
       }
     } catch (e) {
       print('LOG: Error syncing income: $e');
+      throw Exception('Guardado LOCALMENTE, pero falló la subida a Nube.');
     }
   }
 
@@ -62,6 +63,7 @@ class IncomeRepository {
       }
     } catch (e) {
       print('LOG: Error deleting income from cloud: $e');
+      throw Exception('Fallo de Red: Ingreso eliminado localmente, pero no en la Nube.');
     }
   }
 }

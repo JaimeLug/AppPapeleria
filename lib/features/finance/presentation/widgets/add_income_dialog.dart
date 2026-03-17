@@ -25,7 +25,7 @@ class _AddIncomeDialogState extends ConsumerState<AddIncomeDialog> {
     super.dispose();
   }
 
-  void _submit() {
+  void _submit() async {
     if (_formKey.currentState!.validate()) {
       final description = _descriptionController.text;
       final amount = double.tryParse(_amountController.text) ?? 0.0;
@@ -36,9 +36,23 @@ class _AddIncomeDialogState extends ConsumerState<AddIncomeDialog> {
         category: _category,
       );
 
-      ref.read(incomeRepositoryProvider).addIncome(income);
-      
-      Navigator.of(context).pop();
+      try {
+        await ref.read(incomeRepositoryProvider).addIncome(income);
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
+      } catch (e) {
+        if (mounted) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(e.toString().replaceAll('Exception: ', '')),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      }
     }
   }
 

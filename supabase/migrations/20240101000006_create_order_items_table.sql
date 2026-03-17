@@ -6,6 +6,7 @@ create table if not exists public.order_items (
   quantity integer not null,
   unit_price numeric(10,2) not null,
   notes text,
+  is_deleted boolean default false not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
   user_id uuid references auth.users(id)

@@ -18,6 +18,25 @@ class CustomerRepositoryImpl implements CustomerRepository {
   Future<void> saveCustomer(CustomerEntity customer) async {
     final model = CustomerModel.fromEntity(customer);
     await _box.put(customer.id, model);
+
+    try {
+      final googleService = GoogleCloudService();
+      if (googleService.isAuthenticated) {
+         final settingsBox = Hive.box('settings');
+         final settingsMap = settingsBox.get('appSettings');
+         if (settingsMap != null) {
+           final settings = Map<String, dynamic>.from(settingsMap);
+           if (settings['syncSheetsEnabled'] == true && settings['googleSheetId'] != null) {
+             final sheetId = settings['googleSheetId'] as String;
+             if (sheetId.isNotEmpty) {
+               await googleService.appendCustomerToSheet(sheetId, customer);
+             }
+           }
+         }
+      }
+    } catch (e) {
+      print('Error al intentar guardar cliente en la nube: $e');
+    }
   }
 
   @override
@@ -42,6 +61,7 @@ class CustomerRepositoryImpl implements CustomerRepository {
       }
     } catch (e) {
       print('Error al intentar borrar cliente de la nube: $e');
+      throw Exception('Fallo de Red: Cliente eliminado localmente, pero no en la Nube.');
     }
   }
 

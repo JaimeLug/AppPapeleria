@@ -14,6 +14,7 @@ create table if not exists public.orders (
   is_urgent boolean not null default false,
   notes text,
   google_calendar_event_id text,
+  is_deleted boolean default false not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null,
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
   user_id uuid references auth.users(id)

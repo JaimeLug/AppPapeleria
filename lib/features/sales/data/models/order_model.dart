@@ -32,6 +32,8 @@ class OrderModel extends OrderEntity {
   final DateTime? saleDate;
   @HiveField(11)
   final String? googleEventId;
+  @HiveField(12)
+  final String? notes;
 
   const OrderModel({
     required this.id,
@@ -46,6 +48,7 @@ class OrderModel extends OrderEntity {
     this.paymentStatus = 'pending',
     this.deliveryStatus = 'pending',
     this.googleEventId,
+    this.notes,
   }) : super(
           id: id,
           customerName: customerName,
@@ -59,6 +62,7 @@ class OrderModel extends OrderEntity {
           paymentStatus: paymentStatus,
           deliveryStatus: deliveryStatus,
           googleEventId: googleEventId,
+          notes: notes,
         );
 
   factory OrderModel.fromEntity(OrderEntity entity) {
@@ -75,6 +79,7 @@ class OrderModel extends OrderEntity {
       paymentStatus: entity.paymentStatus,
       deliveryStatus: entity.deliveryStatus,
       googleEventId: entity.googleEventId,
+      notes: entity.notes,
     );
   }
 
@@ -95,6 +100,7 @@ class OrderModel extends OrderEntity {
       paymentStatus: map['paymentStatus'] ?? 'pending',
       deliveryStatus: map['deliveryStatus'] ?? 'pending',
       googleEventId: map['googleEventId'],
+      notes: map['notes'],
     );
   }
 
@@ -112,6 +118,7 @@ class OrderModel extends OrderEntity {
       'paymentStatus': paymentStatus,
       'deliveryStatus': deliveryStatus,
       'googleEventId': googleEventId,
+      'notes': notes,
     };
   }
 
@@ -129,6 +136,7 @@ class OrderModel extends OrderEntity {
       paymentStatus: 'pending', 
       deliveryStatus: 'pending',
       googleEventId: null,
+      notes: json['Notas'],
     );
   }
 
@@ -146,6 +154,7 @@ class OrderModel extends OrderEntity {
       'Estado': status,
       'EstatusPago': paymentStatus,
       'EstatusEntrega': deliveryStatus,
+      'Notas': notes ?? '',
     };
   }
 }

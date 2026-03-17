@@ -29,6 +29,11 @@ class CartState {
   final String? errorMessage;
   final bool isSuccess;
 
+  // New fields for extra costs and notes
+  final String extraConcept;
+  final double extraAmount;
+  final String generalNote;
+
   const CartState({
     this.items = const [],
     this.customerName = '',
@@ -39,10 +44,13 @@ class CartState {
     this.errorMessage,
     this.isSuccess = false,
     this.isFullyPaid = false,
+    this.extraConcept = '',
+    this.extraAmount = 0.0,
+    this.generalNote = '',
   });
 
   double get subtotal => items.fold(0, (sum, item) => sum + item.total);
-  double get total => subtotal; // Can add tax or discounts here
+  double get total => subtotal + extraAmount; // Include extra amount
   double get pendingBalance => isFullyPaid ? 0.0 : total - advancePayment;
 
   CartState copyWith({
@@ -55,6 +63,9 @@ class CartState {
     String? errorMessage,
     bool? isSuccess,
     bool? isFullyPaid,
+    String? extraConcept,
+    double? extraAmount,
+    String? generalNote,
   }) {
     return CartState(
       items: items ?? this.items,
@@ -66,6 +77,9 @@ class CartState {
       errorMessage: errorMessage, // Reset if not provided, or logic can vary
       isSuccess: isSuccess ?? this.isSuccess,
       isFullyPaid: isFullyPaid ?? this.isFullyPaid,
+      extraConcept: extraConcept ?? this.extraConcept,
+      extraAmount: extraAmount ?? this.extraAmount,
+      generalNote: generalNote ?? this.generalNote,
     );
   }
 }
@@ -76,28 +90,25 @@ class CartNotifier extends StateNotifier<CartState> {
 
   CartNotifier(this.repository) : super(const CartState());
 
-  void addItem(ProductEntity product) {
+  void addItem(ProductEntity product, {int quantity = 1}) {
     if (state.items.any((item) => item.productId == product.id)) {
       // Increment quantity if exists
       final existingItem = state.items.firstWhere((item) => item.productId == product.id);
-      updateQuantity(product.id, existingItem.quantity + 1);
+      updateQuantity(product.id, existingItem.quantity + quantity);
     } else {
       // Add new item
       final newItem = OrderItemEntity(
         productId: product.id,
         productName: product.name,
         price: product.basePrice + product.extraCost,
-        quantity: 1,
+        quantity: quantity,
         notes: product.notes,
       );
       state = state.copyWith(items: [...state.items, newItem]);
       
       // Auto-update advance if fully paid
       if (state.isFullyPaid) {
-        // Calculate new total
-        final newItems = [...state.items, newItem];
-        final newTotal = newItems.fold(0.0, (sum, item) => sum + item.total);
-        state = state.copyWith(advancePayment: newTotal);
+        state = state.copyWith(advancePayment: state.total);
       }
     }
   }
@@ -106,8 +117,7 @@ class CartNotifier extends StateNotifier<CartState> {
     final newItems = state.items.where((item) => item.productId != productId).toList();
     state = state.copyWith(items: newItems);
      if (state.isFullyPaid) {
-        final newTotal = newItems.fold(0.0, (sum, item) => sum + item.total);
-        state = state.copyWith(advancePayment: newTotal);
+        state = state.copyWith(advancePayment: state.total);
       }
   }
 
@@ -125,8 +135,7 @@ class CartNotifier extends StateNotifier<CartState> {
     
     state = state.copyWith(items: newItems);
     if (state.isFullyPaid) {
-        final newTotal = newItems.fold(0.0, (sum, item) => sum + item.total);
-        state = state.copyWith(advancePayment: newTotal);
+        state = state.copyWith(advancePayment: state.total);
     }
   }
 
@@ -183,6 +192,22 @@ class CartNotifier extends StateNotifier<CartState> {
     );
   }
 
+  // New methods for extra costs and notes
+  void setExtraConcept(String concept) {
+    state = state.copyWith(extraConcept: concept);
+  }
+
+  void setExtraAmount(double amount) {
+    state = state.copyWith(extraAmount: amount);
+    if (state.isFullyPaid) {
+      state = state.copyWith(advancePayment: state.total);
+    }
+  }
+
+  void setGeneralNote(String note) {
+    state = state.copyWith(generalNote: note);
+  }
+
   void clearCart() {
     state = const CartState();
   }
@@ -206,6 +231,18 @@ class CartNotifier extends StateNotifier<CartState> {
        state = state.copyWith(isLoading: false, errorMessage: 'Debes ingresar el nombre del cliente');
        return;
     }
+    // Validation for extra costs
+    if (state.extraAmount > 0 && state.extraConcept.trim().isEmpty) {
+      state = state.copyWith(isLoading: false, errorMessage: 'Debes especificar el concepto del cargo extra');
+      return;
+    }
+
+    // Construct Notes
+    String finalNotes = state.generalNote;
+    if (state.extraAmount > 0) {
+      finalNotes += (finalNotes.isNotEmpty ? ' | ' : '') + 
+          'Extra: ${state.extraConcept} (\$${state.extraAmount.toStringAsFixed(2)})';
+    }
 
     final isPaid = state.isFullyPaid || (state.advancePayment >= state.total);
 
@@ -221,6 +258,7 @@ class CartNotifier extends StateNotifier<CartState> {
       status: 'Diseño',
       paymentStatus: isPaid ? 'paid' : 'pending',
       deliveryStatus: 'pending',
+      notes: finalNotes.isNotEmpty ? finalNotes : null,
     );
 
     try {
