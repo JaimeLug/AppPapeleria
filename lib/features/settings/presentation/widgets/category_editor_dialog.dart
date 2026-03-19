@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../inventory/presentation/providers/product_providers.dart';
 import '../../../inventory/domain/entities/product.dart';
 import '../providers/settings_provider.dart';
-import 'package:hive/hive.dart';
-import 'package:uuid/uuid.dart';
 
 class CategoryEditorDialog extends ConsumerStatefulWidget {
   const CategoryEditorDialog({super.key});
@@ -118,9 +116,8 @@ class _CategoryEditorDialogState extends ConsumerState<CategoryEditorDialog> {
                 // Delete from Cloud
                 await ref.read(settingsProvider.notifier).deleteCategory(categoryName);
                 
-                if (mounted) {
-                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Categoría eliminada')));
-                }
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Categoría eliminada')));
             },
             child: const Text('Eliminar y Mover'),
           ),
@@ -130,7 +127,7 @@ class _CategoryEditorDialogState extends ConsumerState<CategoryEditorDialog> {
   }
 }
 
-class _RenameCategoryDialogBody extends StatefulWidget {
+class _RenameCategoryDialogBody extends ConsumerStatefulWidget {
   final String currentName;
   final List<ProductEntity> allProducts;
 
@@ -140,10 +137,10 @@ class _RenameCategoryDialogBody extends StatefulWidget {
   });
 
   @override
-  State<_RenameCategoryDialogBody> createState() => _RenameCategoryDialogBodyState();
+  ConsumerState<_RenameCategoryDialogBody> createState() => _RenameCategoryDialogBodyState();
 }
 
-class _RenameCategoryDialogBodyState extends State<_RenameCategoryDialogBody> {
+class _RenameCategoryDialogBodyState extends ConsumerState<_RenameCategoryDialogBody> {
   late final TextEditingController controller;
 
   @override
@@ -177,9 +174,8 @@ class _RenameCategoryDialogBodyState extends State<_RenameCategoryDialogBody> {
             if (controller.text.isNotEmpty && controller.text != widget.currentName) {
               final newName = controller.text;
               
-              // Evitar duplicados
-              final settings = Hive.box('settings').get('appSettings') as Map<dynamic, dynamic>?;
-              final currentCategories = (settings?['productCategories'] as List<dynamic>?)?.cast<String>() ?? [];
+              // Remove Hive box access and use settings provider
+              final currentCategories = ref.read(settingsProvider).productCategories;
               
               if (currentCategories.contains(newName)) {
                 scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Esta categoría ya existe')));

@@ -24,7 +24,13 @@ class StockMovementModel extends HiveObject {
   final String reason;
 
   @HiveField(6)
-  final bool isItemDeleted; // Helpful flag if the original item was deleted
+  final bool isItemDeleted;
+
+  @HiveField(7)
+  final bool isSynced;
+
+  @HiveField(8)
+  final DateTime updatedAt;
 
   StockMovementModel({
     String? id,
@@ -34,8 +40,11 @@ class StockMovementModel extends HiveObject {
     DateTime? date,
     required this.reason,
     this.isItemDeleted = false,
+    this.isSynced = false,
+    DateTime? updatedAt,
   })  : id = id ?? const Uuid().v4(),
-        date = date ?? DateTime.now();
+        date = date ?? DateTime.now(),
+        updatedAt = updatedAt ?? DateTime.now();
 
   StockMovementModel copyWith({
     String? id,
@@ -45,6 +54,8 @@ class StockMovementModel extends HiveObject {
     DateTime? date,
     String? reason,
     bool? isItemDeleted,
+    bool? isSynced,
+    DateTime? updatedAt,
   }) {
     return StockMovementModel(
       id: id ?? this.id,
@@ -54,30 +65,36 @@ class StockMovementModel extends HiveObject {
       date: date ?? this.date,
       reason: reason ?? this.reason,
       isItemDeleted: isItemDeleted ?? this.isItemDeleted,
+      isSynced: isSynced ?? this.isSynced,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
   factory StockMovementModel.fromJson(Map<String, dynamic> json) {
     return StockMovementModel(
       id: json['id'],
-      itemId: json['itemId'],
-      movementType: json['movementType'],
+      itemId: json['item_id'] ?? json['itemId'],
+      movementType: json['movement_type'] ?? json['movementType'],
       quantity: (json['quantity'] ?? 0.0).toDouble(),
       date: json['date'] != null ? DateTime.parse(json['date']) : DateTime.now(),
-      reason: json['reason'],
-      isItemDeleted: json['isItemDeleted'] ?? false,
+      reason: json['reason'] ?? '',
+      isItemDeleted: json['is_item_deleted'] ?? (json['isItemDeleted'] ?? false),
+      isSynced: true,
+      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : DateTime.now(),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'itemId': itemId,
-      'movementType': movementType,
+      'item_id': itemId,
+      'movement_type': movementType,
       'quantity': quantity,
       'date': date.toIso8601String(),
       'reason': reason,
-      'isItemDeleted': isItemDeleted,
+      'is_item_deleted': isItemDeleted,
+      'is_synced': isSynced,
+      'updated_at': updatedAt.toUtc().toIso8601String(),
     };
   }
 }

@@ -65,7 +65,7 @@ class _QuickNoteWidgetState extends ConsumerState<QuickNoteWidget> {
        onRemove: widget.onRemove,
        backgroundColor: isDarkMode ? Theme.of(context).cardColor : Colors.yellow[50],
        overrideTextColor: isDarkMode ? Colors.white : AppTheme.primaryColor,
-       overrideIconColor: isDarkMode ? Colors.white70 : AppTheme.primaryColor.withOpacity(0.5),
+       overrideIconColor: isDarkMode ? Colors.white70 : AppTheme.primaryColor.withValues(alpha: 0.5),
        onResize: widget.onResize,
        onResizeHeight: widget.onResizeHeight,
        child: Container(

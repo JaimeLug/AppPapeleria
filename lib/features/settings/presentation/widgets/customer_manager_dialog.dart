@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../sales/presentation/providers/customer_provider.dart';
 import '../../../sales/domain/entities/customer.dart';
 import '../../../sales/data/models/customer_model.dart';
-import '../providers/settings_provider.dart';
 import 'package:uuid/uuid.dart';
 
 class CustomerManagerDialog extends ConsumerStatefulWidget {
@@ -96,24 +95,22 @@ class _CustomerManagerDialogState extends ConsumerState<CustomerManagerDialog> {
             onPressed: () async {
                try {
                  await ref.read(customerRepositoryProvider).deleteCustomer(customer.id);
-                 print('LOG: Cliente eliminado - ID: ${customer.id}');
+                 // debugPrint('LOG: Cliente eliminado - ID: ${customer.id}');
                  
                  ref.invalidate(customerListProvider);
 
-                 if (mounted) {
-                   Navigator.pop(context);
-                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cliente eliminado')));
-                 }
+                 if (!context.mounted) return;
+                 Navigator.pop(context);
+                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cliente eliminado')));
                } catch (e) {
                  ref.invalidate(customerListProvider);
-                 if (mounted) {
-                   Navigator.pop(context);
-                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                     content: Text(e.toString().replaceAll('Exception: ', '')),
-                     backgroundColor: Colors.orange,
-                     duration: const Duration(seconds: 4),
-                   ));
-                 }
+                 if (!context.mounted) return;
+                 Navigator.pop(context);
+                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                   content: Text(e.toString().replaceAll('Exception: ', '')),
+                   backgroundColor: Colors.orange,
+                   duration: const Duration(seconds: 4),
+                 ));
                }
             },
             child: const Text('Eliminar'),

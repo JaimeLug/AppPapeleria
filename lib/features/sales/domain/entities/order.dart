@@ -15,6 +15,7 @@ class OrderEntity extends Equatable {
   final String deliveryStatus; // pending, delivered, cancelled
   final String? googleEventId; // Google Calendar event ID for sync
   final String? notes;
+  final DateTime updatedAt;
 
   const OrderEntity({
     required this.id,
@@ -30,6 +31,7 @@ class OrderEntity extends Equatable {
     this.deliveryStatus = 'pending',
     this.googleEventId,
     this.notes,
+    required this.updatedAt,
   });
 
   OrderEntity copyWith({
@@ -46,6 +48,7 @@ class OrderEntity extends Equatable {
     String? deliveryStatus,
     String? googleEventId,
     String? notes,
+    DateTime? updatedAt,
   }) {
     return OrderEntity(
       id: id ?? this.id,
@@ -61,6 +64,7 @@ class OrderEntity extends Equatable {
       deliveryStatus: deliveryStatus ?? this.deliveryStatus,
       googleEventId: googleEventId ?? this.googleEventId,
       notes: notes ?? this.notes,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -79,5 +83,6 @@ class OrderEntity extends Equatable {
         deliveryStatus,
         googleEventId,
         notes,
+        updatedAt,
       ];
 }

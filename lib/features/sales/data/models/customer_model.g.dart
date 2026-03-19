@@ -20,19 +20,25 @@ class CustomerModelAdapter extends TypeAdapter<CustomerModel> {
       id: fields[0] as String,
       name: fields[1] as String,
       phone: fields[2] as String,
+      isSynced: (fields[3] as bool?) ?? false,
+      updatedAt: (fields[4] as DateTime?) ?? DateTime.now(),
     );
   }
 
   @override
   void write(BinaryWriter writer, CustomerModel obj) {
     writer
-      ..writeByte(3)
+      ..writeByte(5)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
       ..write(obj.name)
       ..writeByte(2)
-      ..write(obj.phone);
+      ..write(obj.phone)
+      ..writeByte(3)
+      ..write(obj.isSynced)
+      ..writeByte(4)
+      ..write(obj.updatedAt);
   }
 
   @override

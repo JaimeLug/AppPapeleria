@@ -30,7 +30,13 @@ class InventoryItemModel extends HiveObject {
   final double unitCost;
 
   @HiveField(8)
-  bool isDeleted; // Optional boolean to handle logical deletion
+  bool isDeleted;
+
+  @HiveField(9)
+  final bool isSynced;
+
+  @HiveField(10)
+  final DateTime updatedAt;
 
   InventoryItemModel({
     String? id,
@@ -42,7 +48,10 @@ class InventoryItemModel extends HiveObject {
     this.minimumStock = 0.0,
     this.unitCost = 0.0,
     this.isDeleted = false,
-  }) : id = id ?? const Uuid().v4();
+    this.isSynced = false,
+    DateTime? updatedAt,
+  })  : id = id ?? const Uuid().v4(),
+        updatedAt = updatedAt ?? DateTime.now();
 
   InventoryItemModel copyWith({
     String? id,
@@ -54,6 +63,8 @@ class InventoryItemModel extends HiveObject {
     double? minimumStock,
     double? unitCost,
     bool? isDeleted,
+    bool? isSynced,
+    DateTime? updatedAt,
   }) {
     return InventoryItemModel(
       id: id ?? this.id,
@@ -65,6 +76,8 @@ class InventoryItemModel extends HiveObject {
       minimumStock: minimumStock ?? this.minimumStock,
       unitCost: unitCost ?? this.unitCost,
       isDeleted: isDeleted ?? this.isDeleted,
+      isSynced: isSynced ?? this.isSynced,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -73,12 +86,14 @@ class InventoryItemModel extends HiveObject {
       id: json['id'],
       name: json['name'],
       sku: json['sku'],
-      itemType: json['itemType'],
-      unitOfMeasure: json['unitOfMeasure'],
-      currentStock: (json['currentStock'] ?? 0.0).toDouble(),
-      minimumStock: (json['minimumStock'] ?? 0.0).toDouble(),
-      unitCost: (json['unitCost'] ?? 0.0).toDouble(),
-      isDeleted: json['isDeleted'] ?? false,
+      itemType: json['item_type'] ?? json['itemType'],
+      unitOfMeasure: json['unit_of_measure'] ?? json['unitOfMeasure'],
+      currentStock: (json['current_stock'] ?? (json['currentStock'] ?? 0.0)).toDouble(),
+      minimumStock: (json['minimum_stock'] ?? (json['minimumStock'] ?? 0.0)).toDouble(),
+      unitCost: (json['unit_cost'] ?? (json['unitCost'] ?? 0.0)).toDouble(),
+      isDeleted: json['is_deleted'] ?? (json['isDeleted'] ?? false),
+      isSynced: true,
+      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : DateTime.now(),
     );
   }
 
@@ -87,12 +102,14 @@ class InventoryItemModel extends HiveObject {
       'id': id,
       'name': name,
       'sku': sku,
-      'itemType': itemType,
-      'unitOfMeasure': unitOfMeasure,
-      'currentStock': currentStock,
-      'minimumStock': minimumStock,
-      'unitCost': unitCost,
-      'isDeleted': isDeleted,
+      'item_type': itemType,
+      'unit_of_measure': unitOfMeasure,
+      'current_stock': currentStock,
+      'minimum_stock': minimumStock,
+      'unit_cost': unitCost,
+      'is_deleted': isDeleted,
+      'is_synced': isSynced,
+      'updated_at': updatedAt.toUtc().toIso8601String(),
     };
   }
 }

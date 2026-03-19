@@ -37,7 +37,7 @@ class _AddIncomeDialogState extends ConsumerState<AddIncomeDialog> {
       );
 
       try {
-        await ref.read(incomeRepositoryProvider).addIncome(income);
+        await ref.read(financeRepositoryProvider).addIncome(income);
         if (mounted) {
           Navigator.of(context).pop();
         }

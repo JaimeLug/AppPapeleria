@@ -86,7 +86,7 @@ class OrderCard extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
@@ -150,77 +150,6 @@ class OrderCard extends ConsumerWidget {
     );
   }
 
-  void _showDebtSettlementDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            const Icon(Icons.payment, color: Colors.blue),
-            const SizedBox(width: 8),
-            const Text('Liquidar Deuda'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              '¿Deseas liquidar el saldo restante de este pedido?',
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.orange.withOpacity(0.3)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Saldo Pendiente:',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    '\$${order.pendingBalance.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              if (onLiquidateDebt != null) {
-                onLiquidateDebt!();
-              }
-            },
-            icon: const Icon(Icons.check),
-            label: const Text('Confirmar'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showPaymentDialog(BuildContext context) {
     showDialog(
@@ -268,7 +197,7 @@ class OrderCard extends ConsumerWidget {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(
         text,
@@ -295,11 +224,11 @@ class OrderCard extends ConsumerWidget {
     if (isDelivered && !hasDebt) {
       statusChipText = 'TERMINADO';
       statusChipColor = Colors.green;
-      statusChipBgColor = Colors.green.withOpacity(0.1);
+      statusChipBgColor = Colors.green.withValues(alpha: 0.1);
     } else if (isDelivered && hasDebt) {
       statusChipText = 'PAGO PENDIENTE';
       statusChipColor = Colors.orange;
-      statusChipBgColor = Colors.orange.withOpacity(0.1);
+      statusChipBgColor = Colors.orange.withValues(alpha: 0.1);
     } else {
       statusChipText = 'PENDIENTE DE ENTREGA';
       statusChipColor = Colors.yellow[800]!;
@@ -527,9 +456,9 @@ class _PaymentDialogBodyState extends State<_PaymentDialogBody> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.orange.withOpacity(0.1),
+              color: Colors.orange.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.orange.withOpacity(0.3)),
+              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

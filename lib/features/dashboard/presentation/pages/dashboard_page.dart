@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_theme.dart';
 import '../../../inventory/presentation/pages/product_management_page.dart';
@@ -16,7 +15,7 @@ import '../../../sales/presentation/providers/orders_provider.dart';
 import 'package:app_papeleria/features/settings/presentation/pages/settings_page.dart';
 import 'package:app_papeleria/features/settings/presentation/providers/settings_provider.dart';
 import '../../domain/models/dashboard_widget_config.dart';
-import '../../presentation/widgets/dashboard_widget_wrapper.dart'; // Needed for type checking/stack wrapping if explicit
+// Needed for type checking/stack wrapping if explicit
 import '../utils/dashboard_constants.dart';
 import '../utils/dashboard_widgets_registry.dart';
 import '../widgets/add_widget_sheet.dart';
@@ -30,7 +29,6 @@ class DashboardPage extends ConsumerStatefulWidget {
 
 class _DashboardPageState extends ConsumerState<DashboardPage> {
   int _selectedIndex = 0;
-  bool _isDragging = false; // We can track this if DashboardWidgetWrapper notifies us, 
                             // or imply it via DragTarget. But Draggable is now deep inside.
                             // To update FAB we need to know. 
                             // For now, FAB might not turn red unless we lift state.
@@ -74,9 +72,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
   Widget _buildMutantFab(BuildContext context) {
     return DragTarget<String>(
-      onWillAccept: (data) => true,
-      onAccept: (widgetId) {
-        _removeWidget(widgetId);
+      onWillAcceptWithDetails: (data) => true,
+      onAcceptWithDetails: (details) {
+        _removeWidget(details.data);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Widget eliminado')),
         );
@@ -254,8 +252,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 int cols = 4; 
                 
                 // Responsive adjustments
-                if (width < 600) cols = 2;
-                else if (width < 900) cols = 3;
+                if (width < 600) {
+                  cols = 2;
+                } else if (width < 900) {
+                  cols = 3;
+                }
                 // else if (width < 1100) cols = 3; // Maybe keep 3 longer? 
                 // > 900 -> 4 columns is standard desktop.
                 
@@ -320,8 +321,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
     // Target for DROPPING reordering
     return DragTarget<String>(
-      onWillAccept: (incomingId) => incomingId != null && incomingId != config.id,
-      onAccept: (incomingId) => _reorderWidget(incomingId, config.id),
+      onWillAcceptWithDetails: (details) => details.data != config.id,
+      onAcceptWithDetails: (details) => _reorderWidget(details.data, config.id),
       builder: (context, candidateData, rejectedData) {
          return widgetContent;
       },
@@ -444,7 +445,7 @@ class _SidebarItem extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryColor.withOpacity(0.1) : Colors.transparent,
+          color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(

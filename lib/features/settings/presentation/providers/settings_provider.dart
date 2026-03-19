@@ -1,20 +1,8 @@
-import 'dart:convert';
-import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:file_picker/file_picker.dart';
-import '../../../../core/services/google_cloud_service.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:intl/intl.dart';
-
-import '../../../../features/sales/data/models/order_model.dart';
-import '../../../../features/sales/data/models/customer_model.dart';
-import '../../../../features/inventory/data/models/product_model.dart';
-import '../../../../features/finance/data/models/expense_model.dart';
-import '../../../../features/finance/data/models/income_model.dart';
-
-// --- State Model ---
 import '../../../../features/dashboard/domain/models/dashboard_widget_config.dart';
+import '../../domain/repositories/settings_repository.dart';
+import '../../data/repositories/hive_settings_repository.dart';
 
 // --- State Model ---
 class AppSettings {
@@ -186,23 +174,21 @@ class AppSettings {
 }
 
 // --- Notifier ---
-class SettingsNotifier extends StateNotifier<AppSettings> {
-  final Box _box;
 
-  SettingsNotifier(this._box) : super(const AppSettings()) {
+// --- Notifier ---
+class SettingsNotifier extends StateNotifier<AppSettings> {
+  final SettingsRepository _repository;
+
+  SettingsNotifier(this._repository) : super(const AppSettings()) {
     _loadSettings();
   }
 
-  void _loadSettings() {
-    final data = _box.get('appSettings');
-    if (data != null) {
-      final map = Map<String, dynamic>.from(data);
-      state = AppSettings.fromMap(map);
-    }
+  Future<void> _loadSettings() async {
+    state = await _repository.getSettings();
   }
 
   Future<void> _saveSettings() async {
-    await _box.put('appSettings', state.toMap());
+    await _repository.saveSettings(state);
   }
 
   // Actions
@@ -264,7 +250,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     );
     _saveSettings();
   }
- 
+  
   void updateDashboardTitles(Map<String, String> titles) {
     state = state.copyWith(dashboardTitles: titles);
     _saveSettings();
@@ -288,166 +274,46 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     _saveSettings();
   }
 
-  // --- Developer Tools ---
-
   Future<void> deleteCategory(String categoryName) async {
-    try {
-      final googleService = GoogleCloudService();
-      if (googleService.isAuthenticated) {
-         final settingsBox = Hive.box('settings');
-         final settingsMap = settingsBox.get('appSettings');
-         if (settingsMap != null) {
-           final settingsMapDynamic = Map<String, dynamic>.from(settingsMap);
-           if (settingsMapDynamic['syncSheetsEnabled'] == true && settingsMapDynamic['googleSheetId'] != null) {
-             final sheetId = settingsMapDynamic['googleSheetId'] as String;
-             if (sheetId.isNotEmpty) {
-               print('Intentando eliminar categoría $categoryName de Cloud...');
-               await googleService.deleteRowById(sheetId, 'Categorías', categoryName);
-             }
-           }
-         }
-      }
-    } catch (e) {
-      print('Error al intentar borrar categoría de la nube: $e');
-    }
+    final updatedCategories = List<String>.from(state.productCategories)
+      ..remove(categoryName);
+    state = state.copyWith(productCategories: updatedCategories);
+    await _saveSettings();
+  }
+
+  Future<void> performAdvancedSync(String mode) async {
+    await _repository.performAdvancedSync(mode, state);
   }
 
   Future<void> exportBackup() async {
-    try {
-      // 1. Gather all data
-      final customersBox = Hive.box<CustomerModel>('customers');
-      final ordersBox = Hive.box<OrderModel>('orders');
-      final productsBox = Hive.box<ProductModel>('products');
-      final expensesBox = Hive.box<ExpenseModel>('expenses');
-      final incomesBox = Hive.box<IncomeModel>('incomes');
-
-      final allData = {
-        'settings': _box.get('appSettings') ?? state.toMap(),
-        'customers': customersBox.values.map((e) => e.toJson()).toList(),
-        'orders': ordersBox.values.map((e) => e.toJson()).toList(),
-        'products': productsBox.values.map((e) => e.toJson()).toList(),
-        'expenses': expensesBox.values.map((e) => e.toJson()).toList(),
-        'incomes': incomesBox.values.map((e) => e.toJson()).toList(),
-        'backupDate': DateTime.now().toIso8601String(),
-        'version': '1.0',
-      };
-      
-      final jsonString = jsonEncode(allData);
-      
-      final fileName = 'backup_papeleria_${DateFormat('yyyyMMdd_HHmm').format(DateTime.now())}.json';
-      
-      final result = await FilePicker.platform.saveFile(
-        dialogTitle: 'Guardar Backup',
-        fileName: fileName,
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-      );
-
-      if (result != null) {
-        final file = File(result);
-        await file.writeAsString(jsonString);
-      }
-    } catch (e) {
-      print('Backup Failed: $e');
-      rethrow;
-    }
+    await _repository.exportBackup(state);
   }
   
   Future<void> importBackup() async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-      );
-
-      if (result != null && result.files.single.path != null) {
-        final file = File(result.files.single.path!);
-        final jsonString = await file.readAsString();
-        final Map<String, dynamic> data = jsonDecode(jsonString);
-
-        // Validation (Basic)
-        if (!data.containsKey('customers') || !data.containsKey('orders')) {
-          throw Exception('Formato de backup inválido');
-        }
-
-        // Clear and Restore
-        // 1. Customers
-        final customersBox = Hive.box<CustomerModel>('customers');
-        await customersBox.clear();
-        for (var item in (data['customers'] as List)) {
-          final model = CustomerModel.fromJson(item);
-          await customersBox.put(model.id, model);
-        }
-
-        // 2. Orders
-        final ordersBox = Hive.box<OrderModel>('orders');
-        await ordersBox.clear();
-        for (var item in (data['orders'] as List)) {
-          final model = OrderModel.fromJson(item);
-          await ordersBox.put(model.id, model);
-        }
-        
-        // 3. Products
-        final productsBox = Hive.box<ProductModel>('products');
-        await productsBox.clear();
-        for (var item in (data['products'] as List)) {
-          final model = ProductModel.fromJson(item);
-          await productsBox.put(model.id, model);
-        }
-        
-        // 4. Expenses
-        final expensesBox = Hive.box<ExpenseModel>('expenses');
-        await expensesBox.clear();
-        if (data['expenses'] != null) {
-          for (var item in (data['expenses'] as List)) {
-             final model = ExpenseModel.fromJson(item);
-             await expensesBox.put(model.id, model);
-          }
-        }
-        
-        // 5. Incomes
-        final incomesBox = Hive.box<IncomeModel>('incomes');
-        await incomesBox.clear();
-        if (data['incomes'] != null) {
-          for (var item in (data['incomes'] as List)) {
-             final model = IncomeModel.fromJson(item);
-             await incomesBox.put(model.id, model);
-          }
-        }
-
-        // 6. Settings
-        if (data['settings'] != null) {
-          final map = Map<String, dynamic>.from(data['settings']);
-          state = AppSettings.fromMap(map);
-          await _saveSettings();
-        }
-      }
-    } catch (e) {
-      print('Start Import Failed: $e');
-      rethrow;
-    }
+    await _repository.importBackup();
+    await _loadSettings();
   }
 
   Future<void> factoryReset(String pin) async {
-    if (pin != '2308') {
-      throw Exception('PIN de Desarrollador incorrecto');
-    }
-    
-    // Clear Google Cloud credentials
-    await _box.delete('googleAccessCredentials');
-    
-    await _box.clear();
-    await Hive.box<CustomerModel>('customers').clear();
-    await Hive.box<OrderModel>('orders').clear();
-    await Hive.box<ProductModel>('products').clear();
-    await Hive.box<ExpenseModel>('expenses').clear();
-    await Hive.box<IncomeModel>('incomes').clear();
-    state = const AppSettings(); // Reset state
+    await _repository.factoryReset(pin);
+    state = const AppSettings();
   }
 }
 
-// --- Provider ---
-final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>((ref) {
+// --- Providers ---
+
+final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   final box = Hive.box('settings');
-  return SettingsNotifier(box);
+  return HiveSettingsRepository(box);
 });
+
+final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>((ref) {
+  final repository = ref.watch(settingsRepositoryProvider);
+  return SettingsNotifier(repository);
+});
+
+final databaseStatsProvider = FutureProvider<Map<String, int>>((ref) {
+  final repository = ref.watch(settingsRepositoryProvider);
+  return repository.getDatabaseStats();
+});
+

@@ -1,9 +1,36 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../../data/models/inventory_item_model.dart';
-import '../../data/repositories/inventory_repository.dart';
+import '../../data/repositories/offline_first_inventory_repository.dart';
+import '../../data/models/stock_movement_model.dart';
+import '../../../../core/services/sync_manager.dart';
+import '../../../../core/providers/remote_repositories_providers.dart';
+import '../../domain/repositories/inventory_repository.dart';
 
 final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
-  return InventoryRepository();
+  final itemBox = Hive.box<InventoryItemModel>('inventoryItems');
+  final movementBox = Hive.box<StockMovementModel>('stockMovements');
+  final remoteRepo = ref.watch(remoteInventoryRepositoryProvider);
+  final syncManager = ref.watch(syncManagerProvider);
+
+  return OfflineFirstInventoryRepository(
+    remoteRepo,
+    itemBox,
+    movementBox,
+    syncManager,
+  );
+});
+
+// Stream Provider for reactive UI updates (Items)
+final inventoryItemsStreamProvider = StreamProvider<List<InventoryItemModel>>((ref) {
+  final repository = ref.watch(inventoryRepositoryProvider);
+  return repository.watchItems();
+});
+
+// Stream Provider for reactive UI updates (Movements)
+final stockMovementsStreamProvider = StreamProvider<List<StockMovementModel>>((ref) {
+  final repository = ref.watch(inventoryRepositoryProvider);
+  return repository.watchMovements();
 });
 
 // Provides the list of all active items
