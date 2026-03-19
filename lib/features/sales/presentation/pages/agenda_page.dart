@@ -152,7 +152,7 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
 
           // Today
           todayDecoration: BoxDecoration(
-            color: isDarkMode ? Colors.grey[800] : AppTheme.primaryColor.withValues(alpha: 0.3),
+            color: isDarkMode ? Colors.grey[800] : Theme.of(context).primaryColor.withValues(alpha: 0.3),
             shape: BoxShape.circle,
           ),
           todayTextStyle: TextStyle(
@@ -161,7 +161,7 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
           ),
           // Selected day
           selectedDecoration: BoxDecoration(
-            color: isDarkMode ? Colors.grey[700] : AppTheme.primaryColor,
+            color: isDarkMode ? Colors.grey[700] : Theme.of(context).primaryColor,
             shape: BoxShape.circle,
           ),
           selectedTextStyle: const TextStyle(
@@ -199,15 +199,15 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
           titleTextStyle: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: isDarkMode ? Colors.white : AppTheme.primaryColor,
+            color: isDarkMode ? Colors.white : Theme.of(context).primaryColor,
           ),
           leftChevronIcon: Icon(
             Icons.chevron_left,
-            color: isDarkMode ? Colors.white : AppTheme.primaryColor,
+            color: isDarkMode ? Colors.white : Theme.of(context).primaryColor,
           ),
           rightChevronIcon: Icon(
             Icons.chevron_right,
-            color: isDarkMode ? Colors.white : AppTheme.primaryColor,
+            color: isDarkMode ? Colors.white : Theme.of(context).primaryColor,
           ),
         ),
         daysOfWeekStyle: DaysOfWeekStyle(
@@ -217,7 +217,7 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
           ),
           weekendStyle: TextStyle(
             fontWeight: FontWeight.bold,
-            color: isDarkMode ? Colors.grey[400] : AppTheme.primaryColor,
+            color: isDarkMode ? Colors.grey[400] : Theme.of(context).primaryColor,
           ),
         ),
       ),
@@ -254,10 +254,10 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
               children: [
                 Text(
                   DateFormat('EEEE, d MMMM yyyy', 'es_ES').format(_selectedDay),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
+                    color: Theme.of(context).primaryColor,
                   ),
                 ),
                 const SizedBox(height: 4),

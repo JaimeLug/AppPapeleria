@@ -60,11 +60,11 @@ class _OrdersPageState extends ConsumerState<OrdersPage> {
           backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
           elevation: 0,
           toolbarHeight: 110,
-          bottom: const TabBar(
-            labelColor: AppTheme.primaryColor,
+          bottom: TabBar(
+            labelColor: Theme.of(context).primaryColor,
             unselectedLabelColor: Colors.grey,
-            indicatorColor: AppTheme.primaryColor,
-            tabs: [
+            indicatorColor: Theme.of(context).primaryColor,
+            tabs: const [
               Tab(text: 'Activos'),
               Tab(text: 'Hoy'),
               Tab(text: 'Historial'),

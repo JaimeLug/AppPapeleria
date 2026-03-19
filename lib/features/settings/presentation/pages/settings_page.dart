@@ -5,6 +5,7 @@ import 'package:app_papeleria/features/settings/presentation/providers/settings_
 import 'package:app_papeleria/features/settings/presentation/widgets/category_editor_dialog.dart';
 import 'package:app_papeleria/features/settings/presentation/widgets/customer_manager_dialog.dart';
 import 'package:app_papeleria/features/auth/presentation/providers/auth_providers.dart';
+import 'package:app_papeleria/features/settings/presentation/pages/brand_settings_page.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -64,56 +65,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 _buildHeader(context),
                 const SizedBox(height: 32),
                 
-                // Section 1: Business Profile
-                _buildSectionTitle(context, 'Perfil del Negocio', Icons.store),
-                _buildCard(
-                  context,
-                  child: Column(
-                    children: [
-                      _buildTextField(
-                        context: context,
-                        controller: _nameController, 
-                        label: 'Nombre de la Papelería', 
-                        icon: Icons.business,
-                        onChanged: (val) => notifier.updateBusinessInfo(name: val),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildTextField(
-                              context: context,
-                              controller: _phoneController, 
-                              label: 'Teléfono', 
-                              icon: Icons.phone,
-                              onChanged: (val) => notifier.updateBusinessInfo(phone: val),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: _buildTextField(
-                              context: context,
-                              controller: _addressController, 
-                              label: 'Dirección', 
-                              icon: Icons.location_on,
-                              onChanged: (val) => notifier.updateBusinessInfo(address: val),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _buildTextField(
-                        context: context,
-                        controller: _footerController, 
-                        label: 'Mensaje al pie del ticket', 
-                        icon: Icons.receipt_long, 
-                        maxLines: 2,
-                        onChanged: (val) => notifier.updateBusinessInfo(footerMessage: val),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
+
 
                 // Section 2: Dashboard Personalization
                 _buildSectionTitle(context, 'Personalización del Dashboard', Icons.dashboard_customize),
@@ -121,6 +73,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   context,
                   child: Column(
                     children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(child: Text('Tip: Usa la palabra {nombre} en el título para saludar dinámicamente al usuario conectado (Ej: ¡Hola {nombre}!).', style: TextStyle(color: Colors.blue[800], fontSize: 13))),
+                          ],
+                        ),
+                      ),
                       _buildTextField(
                         context: context,
                         controller: _dashboardTitleController,
@@ -148,7 +116,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                   child: Column(
                     children: [
                       ListTile(
-                        leading: const Icon(Icons.category, color: AppTheme.primaryColor),
+                        leading: Icon(Icons.category, color: Theme.of(context).primaryColor),
                         title: const Text('Categorías de Productos'),
                         trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Theme.of(context).iconTheme.color),
                         onTap: () {
@@ -160,7 +128,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       ),
                       const Divider(),
                       ListTile(
-                        leading: const Icon(Icons.people, color: AppTheme.primaryColor),
+                        leading: Icon(Icons.people, color: Theme.of(context).primaryColor),
                         title: const Text('Administrar Clientes'),
                         trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Theme.of(context).iconTheme.color),
                         onTap: () {
@@ -175,12 +143,22 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                 ),
                 const SizedBox(height: 32),
 
-                // Section 4: Appearance & Notifications
-                _buildSectionTitle(context, 'Apariencia y Alertas', Icons.palette),
+                // Section 4: White Label & Appearance
+                _buildSectionTitle(context, 'Perfil, Identidad y Apariencia', Icons.palette),
                 _buildCard(
                   context,
                   child: Column(
                     children: [
+                      ListTile(
+                        leading: Icon(Icons.branding_watermark, color: Theme.of(context).primaryColor),
+                        title: const Text('Perfil de Negocio y Marca Blanca'),
+                        subtitle: const Text('Administrar identidad corporativa y tema visual global'),
+                        trailing: Icon(Icons.arrow_forward_ios, size: 16, color: Theme.of(context).iconTheme.color),
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const BrandSettingsPage()));
+                        },
+                      ),
+                      const Divider(),
                       SwitchListTile(
                         title: const Text('Modo Oscuro'),
                         secondary: const Icon(Icons.dark_mode),
@@ -218,7 +196,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                       ListTile(
                         title: const Text('PIN de Acceso a Finanzas'),
                         subtitle: Text(settings.securityPin != null && settings.securityPin!.isNotEmpty ? 'PIN Activo (****)' : 'Sin protección'),
-                        leading: const Icon(Icons.security, color: AppTheme.secondaryColor),
+                        leading: Icon(Icons.security, color: Theme.of(context).colorScheme.secondary),
                         trailing: ElevatedButton(
                           onPressed: () => _showPinDialog(context, notifier, settings.securityPin),
                           child: Text(settings.securityPin != null && settings.securityPin!.isNotEmpty ? 'Gestionar PIN' : 'Establecer PIN'),
@@ -365,7 +343,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         children: [
-          Icon(icon, color: AppTheme.primaryColor),
+          Icon(icon, color: Theme.of(context).primaryColor),
           const SizedBox(width: 8),
           Text(
             title,
@@ -424,7 +402,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   Widget _buildStatItem(String label, String value) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+        Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Theme.of(context).primaryColor)),
         Text(label, style: TextStyle(color: Colors.grey[600])),
       ],
     );

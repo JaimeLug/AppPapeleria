@@ -54,9 +54,9 @@ class _QuantitySelectionDialogState extends State<QuantitySelectionDialog> {
       titlePadding: EdgeInsets.zero,
       title: Container(
         padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: AppTheme.primaryColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: Theme.of(context).primaryColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           children: [
@@ -120,10 +120,10 @@ class _QuantitySelectionDialogState extends State<QuantitySelectionDialog> {
           const SizedBox(height: 24),
           Text(
             'Total: \$${totalPrice.toStringAsFixed(2)}',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: AppTheme.primaryColor,
+              color: Theme.of(context).primaryColor,
             ),
           ),
         ],
@@ -147,7 +147,7 @@ class _QuantitySelectionDialogState extends State<QuantitySelectionDialog> {
             Navigator.of(context).pop(_quantity);
           },
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.primaryColor,
+            backgroundColor: Theme.of(context).primaryColor,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           ),

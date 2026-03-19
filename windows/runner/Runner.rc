@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "Corateca" "\0"
-            VALUE "FileDescription", "Corateca App" "\0"
+            VALUE "CompanyName", "Papeleria Pro" "\0"
+            VALUE "FileDescription", "Papeleria Pro" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "Corateca App" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 Corateca. All rights reserved." "\0"
-            VALUE "OriginalFilename", "app_papeleria.exe" "\0"
-            VALUE "ProductName", "Corateca App" "\0"
+            VALUE "InternalName", "Papeleria Pro" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Papeleria Pro. All rights reserved." "\0"
+            VALUE "OriginalFilename", "Papeleria Pro.exe" "\0"
+            VALUE "ProductName", "Papeleria Pro" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

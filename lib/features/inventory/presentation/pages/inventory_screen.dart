@@ -70,7 +70,7 @@ class InventoryScreen extends ConsumerWidget {
               label: Text(
                 filter,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : AppTheme.primaryColor,
+                  color: isSelected ? Colors.white : Theme.of(context).primaryColor,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
@@ -81,10 +81,10 @@ class InventoryScreen extends ConsumerWidget {
                 }
               },
               backgroundColor: Colors.white,
-              selectedColor: filter == '⚠️ Bajo Stock' ? Colors.redAccent : AppTheme.primaryColor,
+              selectedColor: filter == '⚠️ Bajo Stock' ? Colors.redAccent : Theme.of(context).primaryColor,
               checkmarkColor: Colors.white,
               side: BorderSide(
-                color: filter == '⚠️ Bajo Stock' ? Colors.redAccent : AppTheme.primaryColor,
+                color: filter == '⚠️ Bajo Stock' ? Colors.redAccent : Theme.of(context).primaryColor,
               ),
             ),
           );
@@ -200,7 +200,7 @@ class InventoryScreen extends ConsumerWidget {
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isLowStock ? Colors.orange : AppTheme.primaryColor,
+                      backgroundColor: isLowStock ? Colors.orange : Theme.of(context).primaryColor,
                       foregroundColor: Colors.white,
                     ),
                     icon: const Icon(Icons.sync_alt, size: 18),
