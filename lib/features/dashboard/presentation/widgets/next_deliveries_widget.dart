@@ -51,7 +51,7 @@ class NextDeliveriesWidget extends ConsumerWidget {
                   children: [
                     CircleAvatar(
                       radius: 16,
-                      backgroundColor: AppTheme.secondaryColor.withOpacity(0.2),
+                      backgroundColor: AppTheme.secondaryColor.withValues(alpha: 0.2),
                       child: const Icon(Icons.inventory_2_outlined, size: 16, color: AppTheme.secondaryColor),
                     ),
                     const SizedBox(width: 8),

@@ -20,12 +20,20 @@ class IncomeModel {
   @HiveField(4)
   final String category;
 
+  @HiveField(5)
+  final bool isSynced;
+
+  @HiveField(6)
+  final DateTime updatedAt;
+
   IncomeModel({
     required this.id,
     required this.description,
     required this.amount,
     required this.date,
     required this.category,
+    this.isSynced = false,
+    required this.updatedAt,
   });
 
   factory IncomeModel.create({
@@ -40,6 +48,28 @@ class IncomeModel {
       amount: amount,
       date: date ?? DateTime.now(),
       category: category,
+      isSynced: false,
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  IncomeModel copyWith({
+    String? id,
+    String? description,
+    double? amount,
+    DateTime? date,
+    String? category,
+    bool? isSynced,
+    DateTime? updatedAt,
+  }) {
+    return IncomeModel(
+      id: id ?? this.id,
+      description: description ?? this.description,
+      amount: amount ?? this.amount,
+      date: date ?? this.date,
+      category: category ?? this.category,
+      isSynced: isSynced ?? this.isSynced,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -48,8 +78,12 @@ class IncomeModel {
       id: json['id'],
       description: json['description'],
       amount: (json['amount'] ?? 0.0).toDouble(),
-      date: DateTime.fromMillisecondsSinceEpoch(json['date']),
+      date: json['date'] is String ? DateTime.parse(json['date']) : DateTime.fromMillisecondsSinceEpoch(json['date'] ?? 0),
       category: json['category'] ?? 'Sin Categoría',
+      isSynced: true,
+      updatedAt: json['updated_at'] != null 
+          ? DateTime.parse(json['updated_at']) 
+          : (json['date'] is String ? DateTime.parse(json['date']) : DateTime.fromMillisecondsSinceEpoch(json['date'] ?? 0)),
     );
   }
 
@@ -58,8 +92,10 @@ class IncomeModel {
       'id': id,
       'description': description,
       'amount': amount,
-      'date': date.millisecondsSinceEpoch,
+      'date': date.toUtc().toIso8601String(),
       'category': category,
+      'is_synced': isSynced,
+      'updated_at': updatedAt.toUtc().toIso8601String(),
     };
   }
 }

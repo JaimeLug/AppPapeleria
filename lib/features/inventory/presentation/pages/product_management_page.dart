@@ -85,7 +85,7 @@ class _ProductManagementPageState extends ConsumerState<ProductManagementPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.inventory_2_outlined,
-                        size: 64, color: AppTheme.primaryColor.withOpacity(0.5)),
+                        size: 64, color: AppTheme.primaryColor.withValues(alpha: 0.5)),
                     const SizedBox(height: 16),
                     Text(
                       'Aún no hay productos.\n¡Empieza a crear magia!',
@@ -390,7 +390,7 @@ class _ProductCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -405,7 +405,7 @@ class _ProductCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryColor.withOpacity(0.2),
+                  color: AppTheme.secondaryColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -439,7 +439,7 @@ class _ProductCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
-              constSpacer(),
+              const ConstSpacer(),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -488,13 +488,12 @@ class _ProductCard extends StatelessWidget {
                     try {
                       await ref.read(productListProvider.notifier).deleteProduct(product.id);
                     } catch (e) {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(e.toString().replaceAll('Exception: ', '')),
-                          backgroundColor: Colors.orange,
-                          duration: const Duration(seconds: 4),
-                        ));
-                      }
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(e.toString().replaceAll('Exception: ', '')),
+                        backgroundColor: Colors.orange,
+                        duration: const Duration(seconds: 4),
+                      ));
                     }
                   },
                   tooltip: 'Eliminar',
@@ -510,8 +509,8 @@ class _ProductCard extends StatelessWidget {
   }
 }
 
-class constSpacer extends StatelessWidget {
-  const constSpacer({super.key});
+class ConstSpacer extends StatelessWidget {
+  const ConstSpacer({super.key});
   @override
   Widget build(BuildContext context) => const Spacer();
 }

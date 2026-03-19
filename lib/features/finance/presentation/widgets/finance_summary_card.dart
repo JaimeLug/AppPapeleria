@@ -31,7 +31,7 @@ class FinanceSummaryCard extends StatelessWidget {
         border: isSelected ? Border.all(color: Colors.white, width: 3) : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -48,7 +48,7 @@ class FinanceSummaryCard extends StatelessWidget {
               Text(
                 title,
                 style: TextStyle(
-                  color: (textColor ?? Colors.white).withOpacity(0.8),
+                  color: (textColor ?? Colors.white).withValues(alpha: 0.8),
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),

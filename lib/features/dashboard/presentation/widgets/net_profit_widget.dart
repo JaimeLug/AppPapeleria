@@ -63,13 +63,13 @@ class NetProfitWidget extends ConsumerWidget {
       },
       loading: () => DashboardWidgetWrapper(
         title: 'Utilidad Neta',
-        child: const Center(child: CircularProgressIndicator()),
         isDragging: isDragging,
+        child: const Center(child: CircularProgressIndicator()),
       ),
       error: (_, __) => DashboardWidgetWrapper(
         title: 'Utilidad Neta',
-        child: const Center(child: Text('Error')),
         isDragging: isDragging,
+        child: const Center(child: Text('Error')),
       ),
     );
   }

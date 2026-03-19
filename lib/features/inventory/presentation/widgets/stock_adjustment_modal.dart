@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../config/theme/app_theme.dart';
 import '../../data/models/inventory_item_model.dart';
 import '../providers/inventory_provider.dart';
 
@@ -19,7 +18,6 @@ class _StockAdjustmentModalState extends ConsumerState<StockAdjustmentModal> {
   final _formKey = GlobalKey<FormState>();
   
   String _selectedMovementType = 'Salida'; // Default to Salida as it's common
-  final List<String> _movementTypes = ['Entrada', 'Salida', 'Mermas/Dañado'];
 
   @override
   void dispose() {

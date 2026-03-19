@@ -37,7 +37,7 @@ class _AddExpenseDialogState extends ConsumerState<AddExpenseDialog> {
       );
 
       try {
-        await ref.read(expenseRepositoryProvider).addExpense(expense);
+        await ref.read(financeRepositoryProvider).addExpense(expense);
         if (mounted) {
           Navigator.of(context).pop();
         }

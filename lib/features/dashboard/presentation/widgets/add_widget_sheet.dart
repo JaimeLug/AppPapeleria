@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../../config/theme/app_theme.dart';
-import '../utils/dashboard_constants.dart';
 import '../utils/dashboard_widgets_registry.dart';
 
 class AddWidgetSheet extends StatelessWidget {
@@ -55,7 +54,7 @@ class AddWidgetSheet extends StatelessWidget {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: isAdded ? Colors.grey[200] : AppTheme.primaryColor.withOpacity(0.1),
+                      color: isAdded ? Colors.grey[200] : AppTheme.primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(

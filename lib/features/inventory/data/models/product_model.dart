@@ -5,18 +5,28 @@ part 'product_model.g.dart';
 
 @HiveType(typeId: 1)
 class ProductModel extends ProductEntity {
+  @override
   @HiveField(0)
   final String id;
+  @override
   @HiveField(1)
   final String name;
+  @override
   @HiveField(2)
   final double basePrice;
+  @override
   @HiveField(3)
   final double extraCost;
+  @override
   @HiveField(4)
   final String category;
+  @override
   @HiveField(5)
   final String? notes;
+  @HiveField(6)
+  final bool isSynced;
+  @HiveField(7)
+  final DateTime updatedAt;
 
   const ProductModel({
     required this.id,
@@ -25,6 +35,8 @@ class ProductModel extends ProductEntity {
     required this.extraCost,
     required this.category,
     this.notes,
+    this.isSynced = false,
+    required this.updatedAt,
   }) : super(
           id: id,
           name: name,
@@ -42,6 +54,30 @@ class ProductModel extends ProductEntity {
       extraCost: entity.extraCost,
       category: entity.category,
       notes: entity.notes,
+      isSynced: false,
+      updatedAt: DateTime.now(),
+    );
+  }
+
+  ProductModel copyWith({
+    String? id,
+    String? name,
+    double? basePrice,
+    double? extraCost,
+    String? category,
+    String? notes,
+    bool? isSynced,
+    DateTime? updatedAt,
+  }) {
+    return ProductModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      basePrice: basePrice ?? this.basePrice,
+      extraCost: extraCost ?? this.extraCost,
+      category: category ?? this.category,
+      notes: notes ?? this.notes,
+      isSynced: isSynced ?? this.isSynced,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
 
@@ -49,10 +85,12 @@ class ProductModel extends ProductEntity {
     return ProductModel(
       id: json['id'],
       name: json['name'],
-      basePrice: (json['basePrice'] ?? 0.0).toDouble(),
-      extraCost: (json['extraCost'] ?? 0.0).toDouble(),
+      basePrice: (json['base_price'] ?? (json['basePrice'] ?? 0.0)).toDouble(),
+      extraCost: (json['extra_cost'] ?? (json['extraCost'] ?? 0.0)).toDouble(),
       category: json['category'] ?? 'Sin Categoría',
       notes: json['notes'],
+      isSynced: true,
+      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : DateTime.now(),
     );
   }
 
@@ -60,10 +98,12 @@ class ProductModel extends ProductEntity {
     return {
       'id': id,
       'name': name,
-      'basePrice': basePrice,
-      'extraCost': extraCost,
+      'base_price': basePrice,
+      'extra_cost': extraCost,
       'category': category,
       'notes': notes,
+      'isSynced': isSynced,
+      'updated_at': updatedAt.toUtc().toIso8601String(),
     };
   }
 }

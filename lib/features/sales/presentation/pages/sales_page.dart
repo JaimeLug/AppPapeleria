@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../config/theme/app_theme.dart';
-import '../../../../core/services/pdf_service.dart';
 import '../../../inventory/domain/entities/product.dart';
 import '../../../inventory/presentation/providers/product_providers.dart';
 import '../../data/models/customer_model.dart';
@@ -164,7 +163,7 @@ class _ProductItemCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -178,7 +177,7 @@ class _ProductItemCard extends StatelessWidget {
               child: Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryColor.withOpacity(0.1),
+                  color: AppTheme.secondaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Icon(Icons.shopping_bag_outlined, color: AppTheme.secondaryColor, size: 40),
@@ -650,6 +649,8 @@ class _CartSummaryState extends ConsumerState<_CartSummary> {
                         // Check result
                         final settings = ref.read(settingsProvider);
                         await ref.read(cartProvider.notifier).confirmSale(settings);
+                        if (!context.mounted) return;
+                        
                         final newState = ref.read(cartProvider);
                         if (newState.errorMessage != null) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -671,7 +672,7 @@ class _CartSummaryState extends ConsumerState<_CartSummary> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryColor,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: AppTheme.primaryColor.withOpacity(0.6),
+                        disabledBackgroundColor: AppTheme.primaryColor.withValues(alpha: 0.6),
                         padding: const EdgeInsets.symmetric(vertical: 20),
                       ),
                     ),

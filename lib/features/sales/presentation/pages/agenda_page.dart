@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../config/theme/app_theme.dart';
 import '../../domain/entities/order.dart';
-import '../../data/models/order_model.dart';
+import '../providers/orders_provider.dart';
 
 class AgendaPage extends ConsumerStatefulWidget {
   const AgendaPage({super.key});
@@ -28,36 +27,12 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
     super.initState();
     _selectedDay = DateTime.now();
     _focusedDay = DateTime.now();
-    _loadOrders();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
-  }
-
-  void _loadOrders() {
-    final box = Hive.box<OrderModel>('orders');
-    final orders = box.values.toList();
-    
-    // Group orders by delivery date
-    final Map<DateTime, List<OrderEntity>> events = {};
-    for (var order in orders) {
-      final date = DateTime(
-        order.deliveryDate.year,
-        order.deliveryDate.month,
-        order.deliveryDate.day,
-      );
-      if (events[date] == null) {
-        events[date] = [];
-      }
-      events[date]!.add(order);
-    }
-    
-    setState(() {
-      _events = events;
-    });
   }
 
   List<OrderEntity> _getEventsForDay(DateTime day) {
@@ -75,7 +50,6 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
       appBar: AppBar(
         title: const Text(
           'Agenda de Entregas',
@@ -84,12 +58,8 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
         backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         elevation: 0,
       ),
-      body: ValueListenableBuilder(
-        valueListenable: Hive.box<OrderModel>('orders').listenable(),
-        builder: (context, Box<OrderModel> box, _) {
-          // Reload orders when data changes (without setState)
-          final orders = box.values.toList();
-          
+      body: ref.watch(ordersStreamProvider).when(
+        data: (orders) {
           // Group orders by delivery date
           final Map<DateTime, List<OrderEntity>> events = {};
           for (var order in orders) {
@@ -140,6 +110,8 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
             },
           );
         },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(child: Text('Error al cargar agenda:\n$err', textAlign: TextAlign.center)),
       ),
     );
   }
@@ -180,7 +152,7 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
 
           // Today
           todayDecoration: BoxDecoration(
-            color: isDarkMode ? Colors.grey[800] : AppTheme.primaryColor.withOpacity(0.3),
+            color: isDarkMode ? Colors.grey[800] : AppTheme.primaryColor.withValues(alpha: 0.3),
             shape: BoxShape.circle,
           ),
           todayTextStyle: TextStyle(
@@ -395,8 +367,8 @@ class _AgendaPageState extends ConsumerState<AgendaPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: isDelivered 
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.orange.withOpacity(0.1),
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : Colors.orange.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(

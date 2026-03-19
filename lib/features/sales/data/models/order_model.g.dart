@@ -23,20 +23,21 @@ class OrderModelAdapter extends TypeAdapter<OrderModel> {
       totalPrice: fields[3] as double,
       pendingBalance: fields[4] as double,
       deliveryDate: fields[5] as DateTime,
-      isSynced: fields[6] as bool,
+      isSynced: (fields[6] as bool?) ?? false,
       saleDate: fields[10] as DateTime?,
       status: fields[7] as String,
       paymentStatus: fields[8] as String,
       deliveryStatus: fields[9] as String,
       googleEventId: fields[11] as String?,
       notes: fields[12] as String?,
+      updatedAt: (fields[13] as DateTime?) ?? DateTime.now(),
     );
   }
 
   @override
   void write(BinaryWriter writer, OrderModel obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -62,7 +63,9 @@ class OrderModelAdapter extends TypeAdapter<OrderModel> {
       ..writeByte(11)
       ..write(obj.googleEventId)
       ..writeByte(12)
-      ..write(obj.notes);
+      ..write(obj.notes)
+      ..writeByte(13)
+      ..write(obj.updatedAt);
   }
 
   @override

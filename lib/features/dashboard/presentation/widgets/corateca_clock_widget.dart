@@ -39,13 +39,13 @@ class _CoratecaClockWidgetState extends State<CoratecaClockWidget> {
       backgroundGradient: LinearGradient(
         colors: [
           Colors.white,
-          AppTheme.primaryColor.withOpacity(0.05),
+          AppTheme.primaryColor.withValues(alpha: 0.05),
         ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
       overrideTextColor: AppTheme.primaryColor,
-      overrideIconColor: AppTheme.primaryColor.withOpacity(0.5),
+      overrideIconColor: AppTheme.primaryColor.withValues(alpha: 0.5),
       child: StreamBuilder<DateTime>(
         stream: _timerStream,
         initialData: DateTime.now(),

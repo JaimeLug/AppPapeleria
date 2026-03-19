@@ -102,7 +102,7 @@ class InventoryScreen extends ConsumerWidget {
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: isLowStock ? Colors.redAccent.withOpacity(0.5) : Colors.transparent, width: 2),
+        side: BorderSide(color: isLowStock ? Colors.redAccent.withValues(alpha: 0.5) : Colors.transparent, width: 2),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -121,7 +121,7 @@ class InventoryScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isLowStock ? Colors.redAccent.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                    color: isLowStock ? Colors.redAccent.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(

@@ -1,14 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../../data/models/product_model.dart';
-import '../../data/repositories/product_repository_impl.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/repositories/product_repository.dart';
+import '../../data/repositories/offline_first_product_repository.dart';
+import '../../../../core/services/sync_manager.dart';
+import '../../../../core/providers/remote_repositories_providers.dart';
 
 // Repository Provider
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
   final box = Hive.box<ProductModel>('products');
-  return ProductRepositoryImpl(box);
+  final remoteRepo = ref.watch(remoteProductRepositoryProvider);
+  final syncManager = ref.watch(syncManagerProvider);
+  
+  return OfflineFirstProductRepository(remoteRepo, box, syncManager);
+});
+
+// Stream Provider for reactive UI updates
+final productListStreamProvider = StreamProvider<List<ProductEntity>>((ref) {
+  final repository = ref.watch(productRepositoryProvider);
+  return repository.watchProducts();
 });
 
 // State Notifier to manage the list of products

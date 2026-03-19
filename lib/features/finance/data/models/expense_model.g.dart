@@ -22,13 +22,15 @@ class ExpenseModelAdapter extends TypeAdapter<ExpenseModel> {
       amount: fields[2] as double,
       date: fields[3] as DateTime,
       category: fields[4] as String,
+      isSynced: (fields[5] as bool?) ?? false,
+      updatedAt: (fields[6] as DateTime?) ?? DateTime.now(),
     );
   }
 
   @override
   void write(BinaryWriter writer, ExpenseModel obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -38,7 +40,11 @@ class ExpenseModelAdapter extends TypeAdapter<ExpenseModel> {
       ..writeByte(3)
       ..write(obj.date)
       ..writeByte(4)
-      ..write(obj.category);
+      ..write(obj.category)
+      ..writeByte(5)
+      ..write(obj.isSynced)
+      ..writeByte(6)
+      ..write(obj.updatedAt);
   }
 
   @override

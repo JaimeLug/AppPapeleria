@@ -23,14 +23,16 @@ class StockMovementModelAdapter extends TypeAdapter<StockMovementModel> {
       quantity: fields[3] as double,
       date: fields[4] as DateTime?,
       reason: fields[5] as String,
-      isItemDeleted: fields[6] as bool,
+      isItemDeleted: (fields[6] as bool?) ?? false,
+      isSynced: (fields[7] as bool?) ?? false,
+      updatedAt: fields[8] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, StockMovementModel obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(9)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -44,7 +46,11 @@ class StockMovementModelAdapter extends TypeAdapter<StockMovementModel> {
       ..writeByte(5)
       ..write(obj.reason)
       ..writeByte(6)
-      ..write(obj.isItemDeleted);
+      ..write(obj.isItemDeleted)
+      ..writeByte(7)
+      ..write(obj.isSynced)
+      ..writeByte(8)
+      ..write(obj.updatedAt);
   }
 
   @override

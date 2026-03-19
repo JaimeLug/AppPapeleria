@@ -1,20 +1,27 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:hive/hive.dart';
 import '../../../inventory/domain/entities/product.dart';
-import '../../data/models/order_item_model.dart';
 import '../../data/models/order_model.dart';
-import '../../data/repositories/order_repository_impl.dart';
+
 import '../../domain/entities/order.dart';
 import '../../domain/entities/order_item.dart';
 import '../../../../core/services/pdf_service.dart';
 import '../../domain/repositories/order_repository.dart';
-import 'package:app_papeleria/features/settings/presentation/providers/settings_provider.dart';
+import '../../../settings/presentation/providers/settings_provider.dart';
+
+import '../../data/repositories/offline_first_order_repository.dart';
+import '../../../../core/services/sync_manager.dart';
+import '../../../../core/providers/remote_repositories_providers.dart';
 
 // Repository Provider
 final orderRepositoryProvider = Provider<OrderRepository>((ref) {
   final box = Hive.box<OrderModel>('orders');
-  return OrderRepositoryImpl(box);
+  final remoteRepo = ref.watch(remoteOrderRepositoryProvider);
+  final syncManager = ref.watch(syncManagerProvider);
+  
+  return OfflineFirstOrderRepository(remoteRepo, box, syncManager);
 });
 
 // Cart State
@@ -217,17 +224,17 @@ class CartNotifier extends StateNotifier<CartState> {
   }
 
   Future<void> confirmSale(AppSettings settings) async {
-    print('LOG: Inicio de venta...');
+    debugPrint('LOG: Inicio de venta...');
     state = state.copyWith(isLoading: true, errorMessage: null, isSuccess: false);
 
     // 1. Validation
     if (state.items.isEmpty) {
-      print('LOG: Error - Carrito vacío');
+      debugPrint('LOG: Error - Carrito vacío');
       state = state.copyWith(isLoading: false, errorMessage: 'El carrito está vacío');
       return;
     }
     if (state.customerName.trim().isEmpty) {
-       print('LOG: Error - Falta nombre de cliente');
+       debugPrint('LOG: Error - Falta nombre de cliente');
        state = state.copyWith(isLoading: false, errorMessage: 'Debes ingresar el nombre del cliente');
        return;
     }
@@ -240,8 +247,7 @@ class CartNotifier extends StateNotifier<CartState> {
     // Construct Notes
     String finalNotes = state.generalNote;
     if (state.extraAmount > 0) {
-      finalNotes += (finalNotes.isNotEmpty ? ' | ' : '') + 
-          'Extra: ${state.extraConcept} (\$${state.extraAmount.toStringAsFixed(2)})';
+      finalNotes += '${finalNotes.isNotEmpty ? ' | ' : ''}Extra: ${state.extraConcept} (\$${state.extraAmount.toStringAsFixed(2)})';
     }
 
     final isPaid = state.isFullyPaid || (state.advancePayment >= state.total);
@@ -259,14 +265,15 @@ class CartNotifier extends StateNotifier<CartState> {
       paymentStatus: isPaid ? 'paid' : 'pending',
       deliveryStatus: 'pending',
       notes: finalNotes.isNotEmpty ? finalNotes : null,
+      updatedAt: DateTime.now(),
     );
 
     try {
       // Paso 1: Guardar en Hive (Critical)
-      print('LOG: Intentando guardar pedido en Hive...');
+      debugPrint('LOG: Intentando guardar pedido en Hive...');
       // Ensure box is open just in case, though main should handle it.
       if (!Hive.isBoxOpen('orders')) {
-         print('LOG: Orders box not open, opening now...');
+         debugPrint('LOG: Orders box not open, opening now...');
          await Hive.openBox<OrderModel>('orders');
       }
 
@@ -274,20 +281,20 @@ class CartNotifier extends StateNotifier<CartState> {
       
       await result.fold(
         (failure) async {
-          print('LOG: Error al guardar en Hive: ${failure.message}');
+          debugPrint('LOG: Error al guardar en Hive: ${failure.message}');
           state = state.copyWith(isLoading: false, errorMessage: 'Error al guardar: ${failure.message}');
         },
         (syncSuccess) async {
-           print('LOG: Pedido guardado con éxito. ID: ${order.id}. Synced: $syncSuccess');
+           debugPrint('LOG: Pedido guardado con éxito. ID: ${order.id}. Synced: $syncSuccess');
            
            // Paso 3: PDF (Opcional/Riesgoso)
            try {
-              print('LOG: Intentando generar PDF...');
+              debugPrint('LOG: Intentando generar PDF...');
               final pdfService = PdfService();
               await pdfService.generateAndPrintReceipt(order, settings);
-              print('LOG: PDF generado correctamente');
+              debugPrint('LOG: PDF generado correctamente');
            } catch (e) {
-              print('LOG: Error generando PDF: $e');
+              debugPrint('LOG: Error generando PDF: $e');
               // Non-critical error, order is saved.
               // We could warn, but sync status is more important.
            }
@@ -304,7 +311,7 @@ class CartNotifier extends StateNotifier<CartState> {
         },
       );
     } catch (e) {
-      print('LOG: Excepción no controlada en confirmSale: $e');
+      debugPrint('LOG: Excepción no controlada en confirmSale: $e');
        state = state.copyWith(isLoading: false, errorMessage: 'Error crítico: $e');
     }
   }
