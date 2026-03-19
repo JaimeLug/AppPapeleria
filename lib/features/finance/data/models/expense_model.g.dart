@@ -22,8 +22,8 @@ class ExpenseModelAdapter extends TypeAdapter<ExpenseModel> {
       amount: fields[2] as double,
       date: fields[3] as DateTime,
       category: fields[4] as String,
-      isSynced: (fields[5] as bool?) ?? false,
-      updatedAt: (fields[6] as DateTime?) ?? DateTime.now(),
+      isSynced: fields[5] as bool,
+      updatedAt: fields[6] as DateTime,
     );
   }
 

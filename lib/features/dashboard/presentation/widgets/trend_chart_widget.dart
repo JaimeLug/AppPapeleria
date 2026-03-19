@@ -73,13 +73,13 @@ class TrendChartWidget extends ConsumerWidget {
                   LineChartBarData(
                     spots: spots,
                     isCurved: true,
-                    color: AppTheme.primaryColor,
+                    color: Theme.of(context).primaryColor,
                     barWidth: 3,
                     isStrokeCapRound: true,
                     dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                      color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
                     ),
                   ),
                 ],

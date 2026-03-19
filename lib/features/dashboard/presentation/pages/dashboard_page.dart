@@ -5,6 +5,7 @@ import '../../../inventory/presentation/pages/product_management_page.dart';
 import '../../../inventory/presentation/pages/inventory_screen.dart';
 import '../../../sales/presentation/pages/sales_page.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../finance/presentation/widgets/month_selector.dart';
 import '../providers/dashboard_provider.dart';
@@ -88,7 +89,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           duration: const Duration(milliseconds: 200),
           child: FloatingActionButton(
             onPressed: _showAddWidgetSheet,
-            backgroundColor: isTargeted ? Colors.redAccent : AppTheme.primaryColor,
+            backgroundColor: isTargeted ? Colors.redAccent : Theme.of(context).primaryColor,
             child: Icon(
               isTargeted ? Icons.delete_outline : Icons.add,
               color: Colors.white,
@@ -158,12 +159,16 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               children: [
                 Image.asset('assets/images/logo.png', height: 40, fit: BoxFit.contain),
                 const SizedBox(width: 12),
-                Text(
-                  'Corateca.',
-                  style: GoogleFonts.quicksand(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
+                Expanded(
+                  child: Text(
+                    'Papelería Pro',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.quicksand(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor,
+                    ),
                   ),
                 ),
               ],
@@ -191,7 +196,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final layout = ref.watch(settingsProvider.select((s) => s.dashboardLayout)) 
                    ?? DashboardWidgetIds.defaultLayout.map((id) => DashboardWidgetConfig(id: id)).toList();
     
-    final welcomeTitle = ref.watch(settingsProvider.select((s) => s.dashboardWelcomeTitle));
+    final userName = Supabase.instance.client.auth.currentUser?.userMetadata?['name']?.toString() ?? '';
+    final rawTitle = ref.watch(settingsProvider.select((s) => s.dashboardWelcomeTitle));
+    final welcomeTitle = rawTitle.replaceAll(RegExp(r'\{[Nn]ombre\}'), userName).trim();
+       
     final welcomeSubtitle = ref.watch(settingsProvider.select((s) => s.dashboardWelcomeSubtitle));
 
     ref.watch(dashboardStatsProvider); 
@@ -216,7 +224,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.refresh, color: AppTheme.primaryColor),
+                    icon: Icon(Icons.refresh, color: Theme.of(context).primaryColor),
                     tooltip: 'Sincronizar ahora',
                     onPressed: () async {
                       final success = await ref.read(ordersProvider.notifier).syncOrders();
@@ -445,21 +453,21 @@ class _SidebarItem extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryColor.withValues(alpha: 0.1) : Colors.transparent,
+          color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
             Icon(
               icon,
-              color: isSelected ? AppTheme.primaryColor : Theme.of(context).textTheme.bodyMedium?.color,
+              color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).textTheme.bodyMedium?.color,
               size: 22,
             ),
             const SizedBox(width: 16),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? AppTheme.primaryColor : Theme.of(context).textTheme.bodyMedium?.color,
+                color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).textTheme.bodyMedium?.color,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 fontSize: 16,
               ),

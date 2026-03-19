@@ -34,7 +34,7 @@ class AppSettings {
   final String quickNoteContent;
 
   const AppSettings({
-    this.businessName = 'Corateca.',
+    this.businessName = 'Papelería Pro',
     this.businessAddress = '',
     this.businessPhone = '',
     this.businessSocials = '',
@@ -146,7 +146,7 @@ class AppSettings {
     }
 
     return AppSettings(
-      businessName: map['businessName'] ?? 'Corateca.',
+      businessName: map['businessName'] ?? 'Papelería Pro',
       businessAddress: map['businessAddress'] ?? '',
       businessPhone: map['businessPhone'] ?? '',
       businessSocials: map['businessSocials'] ?? '',

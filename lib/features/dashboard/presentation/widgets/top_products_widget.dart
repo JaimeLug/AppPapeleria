@@ -44,14 +44,14 @@ class TopProductsWidget extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         '${entry.value}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold, 
-                          color: AppTheme.primaryColor,
+                          color: Theme.of(context).primaryColor,
                           fontSize: 12,
                         ),
                       ),

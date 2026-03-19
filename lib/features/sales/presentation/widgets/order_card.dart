@@ -46,7 +46,7 @@ class OrderCard extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            const Icon(Icons.receipt_long, color: AppTheme.primaryColor),
+            Icon(Icons.receipt_long, color: Theme.of(context).primaryColor),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -86,14 +86,14 @@ class OrderCard extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         '${item.quantity}x',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
+                          color: Theme.of(context).primaryColor,
                         ),
                       ),
                     ),
@@ -137,7 +137,7 @@ class OrderCard extends ConsumerWidget {
             icon: const Icon(Icons.print),
             label: const Text('Reimprimir Ticket'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.secondaryColor,
+              backgroundColor: Theme.of(context).colorScheme.secondary,
               foregroundColor: Colors.white,
             ),
           ),

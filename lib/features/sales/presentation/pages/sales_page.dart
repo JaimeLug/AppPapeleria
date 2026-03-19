@@ -177,10 +177,10 @@ class _ProductItemCard extends StatelessWidget {
               child: Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryColor.withValues(alpha: 0.1),
+                  color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.shopping_bag_outlined, color: AppTheme.secondaryColor, size: 40),
+                child: Icon(Icons.shopping_bag_outlined, color: Theme.of(context).colorScheme.secondary, size: 40),
               ),
             ),
             const SizedBox(height: 12),
@@ -211,8 +211,8 @@ class _ProductItemCard extends StatelessWidget {
               children: [
                 Text(
                   '\$${product.basePrice.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    color: AppTheme.primaryColor,
+                  style: TextStyle(
+                    color: Theme.of(context).primaryColor,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
@@ -598,7 +598,7 @@ class _CartSummaryState extends ConsumerState<_CartSummary> {
                     }
                   },
                   controlAffinity: ListTileControlAffinity.leading,
-                  activeColor: AppTheme.primaryColor,
+                  activeColor: Theme.of(context).primaryColor,
                 ),
                 TextField(
                   controller: _advanceController,
@@ -670,9 +670,9 @@ class _CartSummaryState extends ConsumerState<_CartSummary> {
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
+                        backgroundColor: Theme.of(context).primaryColor,
                         foregroundColor: Colors.white,
-                        disabledBackgroundColor: AppTheme.primaryColor.withValues(alpha: 0.6),
+                        disabledBackgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.6),
                         padding: const EdgeInsets.symmetric(vertical: 20),
                       ),
                     ),
@@ -695,7 +695,7 @@ class _CartSummaryState extends ConsumerState<_CartSummary> {
             fontSize: isHighlighted ? 18 : 16,
             fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
             color: isHighlighted 
-                ? AppTheme.primaryColor 
+                ? Theme.of(context).primaryColor 
                 : (isSecondary ? Colors.grey[700] : Theme.of(context).textTheme.bodyMedium?.color),
           ),
         ),
@@ -705,7 +705,7 @@ class _CartSummaryState extends ConsumerState<_CartSummary> {
             fontSize: isHighlighted ? 20 : 16,
             fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
             color: isHighlighted 
-                ? AppTheme.primaryColor 
+                ? Theme.of(context).primaryColor 
                 : (isSecondary ? Colors.grey[700] : Theme.of(context).textTheme.titleLarge?.color),
           ),
         ),

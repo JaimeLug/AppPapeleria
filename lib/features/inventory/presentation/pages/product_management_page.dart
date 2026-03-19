@@ -62,7 +62,7 @@ class _ProductManagementPageState extends ConsumerState<ProductManagementPage> {
             child: FloatingActionButton.small(
               heroTag: 'addProduct',
               elevation: 0,
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: Theme.of(context).primaryColor,
               child: const Icon(Icons.add, color: Colors.white),
               onPressed: () => _showProductFormDialog(context, ref),
             ),
@@ -85,7 +85,7 @@ class _ProductManagementPageState extends ConsumerState<ProductManagementPage> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.inventory_2_outlined,
-                        size: 64, color: AppTheme.primaryColor.withValues(alpha: 0.5)),
+                        size: 64, color: Theme.of(context).primaryColor.withValues(alpha: 0.5)),
                     const SizedBox(height: 16),
                     Text(
                       'Aún no hay productos.\n¡Empieza a crear magia!',
@@ -405,13 +405,13 @@ class _ProductCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppTheme.secondaryColor.withValues(alpha: 0.2),
+                  color: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   product.category.toUpperCase(),
-                  style: const TextStyle(
-                    color: AppTheme.secondaryColor,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.secondary,
                     fontWeight: FontWeight.bold,
                     fontSize: 10,
                     letterSpacing: 1.0,
@@ -446,7 +446,7 @@ class _ProductCard extends StatelessWidget {
                   Text(
                     '\$${product.basePrice.toStringAsFixed(0)}',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: AppTheme.primaryColor,
+                          color: Theme.of(context).primaryColor,
                           fontWeight: FontWeight.w900,
                           fontSize: 24,
                         ),
@@ -483,7 +483,7 @@ class _ProductCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 IconButton(
-                  icon: const Icon(Icons.delete_outline, color: AppTheme.primaryColor, size: 20),
+                  icon: Icon(Icons.delete_outline, color: Theme.of(context).primaryColor, size: 20),
                   onPressed: () async {
                     try {
                       await ref.read(productListProvider.notifier).deleteProduct(product.id);
@@ -514,4 +514,3 @@ class ConstSpacer extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Spacer();
 }
-

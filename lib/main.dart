@@ -6,14 +6,16 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/theme/app_theme.dart';
 import 'features/dashboard/presentation/pages/dashboard_page.dart';
-import 'features/inventory/data/models/product_model.dart';
-import 'features/sales/data/models/customer_model.dart';
-import 'features/sales/data/models/order_item_model.dart';
-import 'features/sales/data/models/order_model.dart';
 import 'features/finance/data/models/expense_model.dart';
 import 'features/finance/data/models/income_model.dart';
 import 'features/inventory/data/models/inventory_item_model.dart';
+import 'features/inventory/data/models/product_model.dart';
 import 'features/inventory/data/models/stock_movement_model.dart';
+import 'features/sales/data/models/customer_model.dart';
+import 'features/sales/data/models/order_item_model.dart';
+import 'features/sales/data/models/order_model.dart';
+import 'features/settings/domain/models/brand_config_model.dart';
+import 'features/settings/presentation/providers/theme_provider.dart';
 
 import 'features/settings/presentation/providers/settings_provider.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
@@ -64,6 +66,7 @@ void main() async {
   Hive.registerAdapter(IncomeModelAdapter());
   Hive.registerAdapter(InventoryItemModelAdapter());
   Hive.registerAdapter(StockMovementModelAdapter());
+  Hive.registerAdapter(BrandConfigModelAdapter());
   
   try {
     await Hive.openBox<CustomerModel>('customers');
@@ -74,6 +77,7 @@ void main() async {
     await Hive.openBox<InventoryItemModel>('inventoryItems');
     await Hive.openBox<StockMovementModel>('stockMovements');
     await Hive.openBox('settings');
+    await Hive.openBox<BrandConfigModel>('brandConfigBox');
   } catch (e) {
     debugPrint('Error crítico al abrir cajas de Hive: $e');
     debugPrint('Intentando recuperación automática (borrado de datos locales)...');
@@ -109,6 +113,7 @@ void main() async {
       await Hive.openBox<InventoryItemModel>('inventoryItems');
       await Hive.openBox<StockMovementModel>('stockMovements');
       await Hive.openBox('settings');
+      await Hive.openBox<BrandConfigModel>('brandConfigBox');
       debugPrint('Recuperación completada. La aplicación debería iniciar ahora.');
     } catch (recoveryError) {
       debugPrint('Fallo total en la recuperación de Hive: $recoveryError');
@@ -135,12 +140,20 @@ class MyApp extends ConsumerWidget {
     
     final isDarkMode = ref.watch(settingsProvider.select((s) => s.isDarkMode));
 
+    final brandConfig = ref.watch(currentBrandConfigProvider);
+
     if (!isSupabaseConfigured) {
       return MaterialApp(
-        title: 'Corateca App',
+        title: brandConfig.appName,
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
+        theme: AppTheme.lightTheme(
+          primaryColor: Color(brandConfig.primaryColorHex),
+          secondaryColor: Color(brandConfig.accentColorHex),
+        ),
+        darkTheme: AppTheme.darkTheme(
+          primaryColor: Color(brandConfig.primaryColorHex),
+          secondaryColor: Color(brandConfig.accentColorHex),
+        ),
         themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
         home: const Scaffold(
           body: Center(
@@ -164,10 +177,16 @@ class MyApp extends ConsumerWidget {
     final authStateAsync = ref.watch(authStateProvider);
 
     return MaterialApp(
-      title: 'Corateca App',
+      title: brandConfig.appName,
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme(
+        primaryColor: Color(brandConfig.primaryColorHex),
+        secondaryColor: Color(brandConfig.accentColorHex),
+      ),
+      darkTheme: AppTheme.darkTheme(
+        primaryColor: Color(brandConfig.primaryColorHex),
+        secondaryColor: Color(brandConfig.accentColorHex),
+      ),
       themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: authStateAsync.when(
         data: (authState) {

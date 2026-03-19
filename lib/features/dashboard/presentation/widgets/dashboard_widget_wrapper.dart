@@ -39,7 +39,7 @@ class _DashboardWidgetWrapperState extends State<DashboardWidgetWrapper> {
     final isColored = widget.backgroundColor != null || widget.backgroundGradient != null;
     
     // Determine colors
-    final textColor = widget.overrideTextColor ?? (isColored ? Colors.white : AppTheme.primaryColor);
+    final textColor = widget.overrideTextColor ?? (isColored ? Colors.white : Theme.of(context).primaryColor);
     final iconColor = widget.overrideIconColor ?? (isColored ? Colors.white.withValues(alpha: 0.8) : Theme.of(context).iconTheme.color?.withValues(alpha: 0.3));
 
     return Container(
@@ -57,7 +57,7 @@ class _DashboardWidgetWrapperState extends State<DashboardWidgetWrapper> {
           ),
         ],
         border: widget.isDragging 
-            ? Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.5), width: 2) 
+            ? Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.5), width: 2) 
             : null,
       ),
       child: Stack(
