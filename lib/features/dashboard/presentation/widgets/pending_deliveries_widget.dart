@@ -54,13 +54,13 @@ class PendingDeliveriesWidget extends ConsumerWidget {
       },
       loading: () => DashboardWidgetWrapper(
         title: 'Por Entregar',
-        child: const Center(child: CircularProgressIndicator()),
         isDragging: isDragging,
+        child: const Center(child: CircularProgressIndicator()),
       ),
       error: (_, __) => DashboardWidgetWrapper(
         title: 'Por Entregar',
-        child: const Center(child: Text('Error')),
         isDragging: isDragging,
+        child: const Center(child: Text('Error')),
       ),
     );
   }

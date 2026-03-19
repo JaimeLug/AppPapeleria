@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../../config/theme/app_theme.dart';
-import '../utils/dashboard_constants.dart';
 import '../utils/dashboard_widgets_registry.dart';
 
 class AddWidgetSheet extends StatelessWidget {
@@ -55,12 +54,12 @@ class AddWidgetSheet extends StatelessWidget {
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: isAdded ? Colors.grey[200] : AppTheme.primaryColor.withOpacity(0.1),
+                      color: isAdded ? Colors.grey[200] : Theme.of(context).primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
                       meta.icon,
-                      color: isAdded ? Colors.grey : AppTheme.primaryColor,
+                      color: isAdded ? Colors.grey : Theme.of(context).primaryColor,
                     ),
                   ),
                   title: Text(
@@ -85,7 +84,7 @@ class AddWidgetSheet extends StatelessWidget {
                             Navigator.pop(context);
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
+                            backgroundColor: Theme.of(context).primaryColor,
                             foregroundColor: Colors.white,
                             shape: const CircleBorder(),
                             padding: const EdgeInsets.all(8),

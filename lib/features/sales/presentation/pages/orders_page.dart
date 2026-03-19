@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../config/theme/app_theme.dart';
-import '../../data/models/order_model.dart';
 import '../../domain/entities/order.dart';
 import '../providers/orders_provider.dart';
 import '../widgets/order_card.dart';
 
-class OrdersPage extends StatefulWidget {
+class OrdersPage extends ConsumerStatefulWidget {
   const OrdersPage({super.key});
 
   @override
-  State<OrdersPage> createState() => _OrdersPageState();
+  ConsumerState<OrdersPage> createState() => _OrdersPageState();
 }
 
-class _OrdersPageState extends State<OrdersPage> {
+class _OrdersPageState extends ConsumerState<OrdersPage> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -29,7 +27,6 @@ class _OrdersPageState extends State<OrdersPage> {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-
         appBar: AppBar(
           title: Column(
             children: [
@@ -63,52 +60,22 @@ class _OrdersPageState extends State<OrdersPage> {
           backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
           elevation: 0,
           toolbarHeight: 110,
-          bottom: const TabBar(
-            labelColor: AppTheme.primaryColor,
+          bottom: TabBar(
+            labelColor: Theme.of(context).primaryColor,
             unselectedLabelColor: Colors.grey,
-            indicatorColor: AppTheme.primaryColor,
-            tabs: [
+            indicatorColor: Theme.of(context).primaryColor,
+            tabs: const [
               Tab(text: 'Activos'),
               Tab(text: 'Hoy'),
               Tab(text: 'Historial'),
             ],
           ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: Consumer(
-                builder: (context, ref, child) {
-                  return IconButton(
-                    icon: const Icon(Icons.refresh, color: AppTheme.primaryColor),
-                    tooltip: 'Sincronizar ahora',
-                    onPressed: () async {
-                      final success = await ref.read(ordersProvider.notifier).syncOrders();
-                      if (context.mounted) {
-                         if (success) {
-                           ScaffoldMessenger.of(context).showSnackBar(
-                             const SnackBar(content: Text('Datos actualizados correctamente'), backgroundColor: Colors.green),
-                           );
-                         } else {
-                           ScaffoldMessenger.of(context).showSnackBar(
-                             const SnackBar(content: Text('No se pudo actualizar. Mostrando datos locales.'), backgroundColor: Colors.orange),
-                           );
-                         }
-                      }
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
+          actions: const [],
         ),
-        body: ValueListenableBuilder(
-          valueListenable: Hive.box<OrderModel>('orders').listenable(),
-          builder: (context, Box<OrderModel> box, _) {
-            final orders = box.values.toList().cast<OrderEntity>();
-            
+        body: ref.watch(ordersStreamProvider).when(
+          data: (orders) {
             // Filter Logic - using deliveryStatus
             final activeOrders = orders.where((o) => o.deliveryStatus != 'delivered' && o.status != 'Entregado').toList();
-            // Fallback to 'status' if deliveryStatus is pending but status says Entregado (legacy check)
             
             final today = DateTime.now();
             final todayOrders = orders.where((o) {
@@ -128,6 +95,8 @@ class _OrdersPageState extends State<OrdersPage> {
               ],
             );
           },
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (err, stack) => Center(child: Text('Error al cargar pedidos:\n$err', textAlign: TextAlign.center)),
         ),
       ),
     );
@@ -166,22 +135,7 @@ class _OrderList extends ConsumerWidget {
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        final success = await ref.read(ordersProvider.notifier).syncOrders();
-        if (context.mounted) {
-           if (success) {
-             ScaffoldMessenger.of(context).showSnackBar(
-               const SnackBar(content: Text('Datos actualizados correctamente'), backgroundColor: Colors.green),
-             );
-           } else {
-             ScaffoldMessenger.of(context).showSnackBar(
-               const SnackBar(content: Text('No se pudo actualizar. Mostrando datos locales.'), backgroundColor: Colors.orange),
-             );
-           }
-        }
-      },
-      child: ListView.builder(
+    return ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: filteredOrders.length,
         itemBuilder: (context, index) {
@@ -205,7 +159,6 @@ class _OrderList extends ConsumerWidget {
             ),
           );
         },
-      ),
-    );
+      );
   }
 }

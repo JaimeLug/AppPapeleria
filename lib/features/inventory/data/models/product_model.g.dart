@@ -23,13 +23,15 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       extraCost: fields[3] as double,
       category: fields[4] as String,
       notes: fields[5] as String?,
+      isSynced: (fields[6] as bool?) ?? false,
+      updatedAt: (fields[7] as DateTime?) ?? DateTime.now(),
     );
   }
 
   @override
   void write(BinaryWriter writer, ProductModel obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(8)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -41,7 +43,11 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       ..writeByte(4)
       ..write(obj.category)
       ..writeByte(5)
-      ..write(obj.notes);
+      ..write(obj.notes)
+      ..writeByte(6)
+      ..write(obj.isSynced)
+      ..writeByte(7)
+      ..write(obj.updatedAt);
   }
 
   @override

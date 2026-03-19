@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFFEA4C3B); // Red Tomato
-  static const Color secondaryColor = Color(0xFFF4A261); // Soft Orange
   static const Color backgroundColor = Color(0xFFFFFDF7); // Cream Paper
   static const Color cardColor = Color(0xFFFFFFFF); // Pure White
   static const Color titleColor = Color(0xFF2D2D2D); // Dark Grey
   static const Color bodyColor = Color(0xFF4A4A4A); // Medium Grey
 
-  static ThemeData get lightTheme {
+  static ThemeData lightTheme({
+    Color primaryColor = const Color(0xFF8E24AA),
+    Color secondaryColor = const Color(0xFFBA68C8),
+  }) {
     return ThemeData(
       useMaterial3: true,
       scaffoldBackgroundColor: backgroundColor,
@@ -18,8 +19,7 @@ class AppTheme {
         seedColor: primaryColor,
         primary: primaryColor,
         secondary: secondaryColor,
-        surface: cardColor,
-        background: backgroundColor,
+        surface: backgroundColor,
       ),
       textTheme: TextTheme(
         displayLarge: GoogleFonts.quicksand(
@@ -60,11 +60,11 @@ class AppTheme {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.black.withOpacity(0.05)),
+          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.05)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: primaryColor, width: 2),
+          borderSide: BorderSide(color: primaryColor, width: 2),
         ),
         labelStyle: GoogleFonts.quicksand(color: bodyColor),
       ),
@@ -73,7 +73,7 @@ class AppTheme {
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
           elevation: 4,
-          shadowColor: primaryColor.withOpacity(0.3),
+          shadowColor: primaryColor.withValues(alpha: 0.3),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -84,7 +84,7 @@ class AppTheme {
           ),
         ),
       ),
-      iconTheme: const IconThemeData(color: primaryColor),
+      iconTheme: IconThemeData(color: primaryColor),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
@@ -94,7 +94,10 @@ class AppTheme {
       ),
     );
   }
-  static ThemeData get darkTheme {
+  static ThemeData darkTheme({
+    Color primaryColor = const Color(0xFF8E24AA),
+    Color secondaryColor = const Color(0xFFBA68C8),
+  }) {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
@@ -105,8 +108,7 @@ class AppTheme {
         brightness: Brightness.dark,
         primary: primaryColor,
         secondary: secondaryColor,
-        surface: const Color(0xFF2C2C2C),
-        background: const Color(0xFF121212),
+        surface: const Color(0xFF121212),
       ),
       textTheme: TextTheme(
         displayLarge: GoogleFonts.quicksand(
@@ -147,11 +149,11 @@ class AppTheme {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: primaryColor, width: 2),
+          borderSide: BorderSide(color: primaryColor, width: 2),
         ),
         labelStyle: GoogleFonts.quicksand(color: Colors.white70),
         hintStyle: GoogleFonts.quicksand(color: Colors.white38),
@@ -161,7 +163,7 @@ class AppTheme {
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
           elevation: 4,
-          shadowColor: primaryColor.withOpacity(0.3),
+          shadowColor: primaryColor.withValues(alpha: 0.3),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -172,7 +174,7 @@ class AppTheme {
           ),
         ),
       ),
-      iconTheme: const IconThemeData(color: primaryColor),
+      iconTheme: IconThemeData(color: primaryColor),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
@@ -181,7 +183,7 @@ class AppTheme {
             borderRadius: BorderRadius.circular(16)),
       ),
       dividerTheme: DividerThemeData(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         thickness: 1,
       ),
     );

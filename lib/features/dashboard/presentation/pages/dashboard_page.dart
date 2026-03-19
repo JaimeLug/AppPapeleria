@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/theme/app_theme.dart';
 import '../../../inventory/presentation/pages/product_management_page.dart';
+import '../../../inventory/presentation/pages/inventory_screen.dart';
 import '../../../sales/presentation/pages/sales_page.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../finance/presentation/widgets/month_selector.dart';
 import '../providers/dashboard_provider.dart';
@@ -15,7 +16,7 @@ import '../../../sales/presentation/providers/orders_provider.dart';
 import 'package:app_papeleria/features/settings/presentation/pages/settings_page.dart';
 import 'package:app_papeleria/features/settings/presentation/providers/settings_provider.dart';
 import '../../domain/models/dashboard_widget_config.dart';
-import '../../presentation/widgets/dashboard_widget_wrapper.dart'; // Needed for type checking/stack wrapping if explicit
+// Needed for type checking/stack wrapping if explicit
 import '../utils/dashboard_constants.dart';
 import '../utils/dashboard_widgets_registry.dart';
 import '../widgets/add_widget_sheet.dart';
@@ -29,7 +30,6 @@ class DashboardPage extends ConsumerStatefulWidget {
 
 class _DashboardPageState extends ConsumerState<DashboardPage> {
   int _selectedIndex = 0;
-  bool _isDragging = false; // We can track this if DashboardWidgetWrapper notifies us, 
                             // or imply it via DragTarget. But Draggable is now deep inside.
                             // To update FAB we need to know. 
                             // For now, FAB might not turn red unless we lift state.
@@ -54,14 +54,16 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                     : _selectedIndex == 2
                         ? const ProductManagementPage()
                         : _selectedIndex == 3
-                            ? const SalesPage()
+                            ? const InventoryScreen()
                             : _selectedIndex == 4
-                                ? const AgendaPage()
+                                ? const SalesPage()
                                 : _selectedIndex == 5
-                                    ? const ExpensesPage()
+                                    ? const AgendaPage()
                                     : _selectedIndex == 6
-                                        ? const SettingsPage()
-                                        : const Center(child: Text('Coming Soon')),
+                                        ? const ExpensesPage()
+                                        : _selectedIndex == 7
+                                            ? const SettingsPage()
+                                            : const Center(child: Text('Coming Soon')),
           ),
         ],
       ),
@@ -71,9 +73,9 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
   Widget _buildMutantFab(BuildContext context) {
     return DragTarget<String>(
-      onWillAccept: (data) => true,
-      onAccept: (widgetId) {
-        _removeWidget(widgetId);
+      onWillAcceptWithDetails: (data) => true,
+      onAcceptWithDetails: (details) {
+        _removeWidget(details.data);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Widget eliminado')),
         );
@@ -87,7 +89,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           duration: const Duration(milliseconds: 200),
           child: FloatingActionButton(
             onPressed: _showAddWidgetSheet,
-            backgroundColor: isTargeted ? Colors.redAccent : AppTheme.primaryColor,
+            backgroundColor: isTargeted ? Colors.redAccent : Theme.of(context).primaryColor,
             child: Icon(
               isTargeted ? Icons.delete_outline : Icons.add,
               color: Colors.white,
@@ -99,7 +101,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 
   void _navigateTo(int index) {
-    if (index == 5) {
+    if (index == 6) {
       final settings = ref.read(settingsProvider);
       if (settings.securityPin != null && settings.securityPin!.isNotEmpty) {
         _showPinDialog(index, settings.securityPin!);
@@ -157,12 +159,16 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               children: [
                 Image.asset('assets/images/logo.png', height: 40, fit: BoxFit.contain),
                 const SizedBox(width: 12),
-                Text(
-                  'Corateca.',
-                  style: GoogleFonts.quicksand(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
+                Expanded(
+                  child: Text(
+                    'Papelería Pro',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.quicksand(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor,
+                    ),
                   ),
                 ),
               ],
@@ -172,11 +178,12 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           _SidebarItem(icon: Icons.dashboard_outlined, label: 'Dashboard', isSelected: _selectedIndex == 0, onTap: () => _navigateTo(0)),
           _SidebarItem(icon: Icons.list_alt_outlined, label: 'Pedidos', isSelected: _selectedIndex == 1, onTap: () => _navigateTo(1)),
           _SidebarItem(icon: Icons.inventory_2_outlined, label: 'Productos', isSelected: _selectedIndex == 2, onTap: () => _navigateTo(2)),
-          _SidebarItem(icon: Icons.shopping_bag_outlined, label: 'Ventas', isSelected: _selectedIndex == 3, onTap: () => _navigateTo(3)),
-          _SidebarItem(icon: Icons.calendar_today_outlined, label: 'Agenda', isSelected: _selectedIndex == 4, onTap: () => _navigateTo(4)),
-          _SidebarItem(icon: Icons.attach_money, label: 'Finanzas', isSelected: _selectedIndex == 5, onTap: () => _navigateTo(5)),
+          _SidebarItem(icon: Icons.inventory, label: 'Inventario', isSelected: _selectedIndex == 3, onTap: () => _navigateTo(3)),
+          _SidebarItem(icon: Icons.shopping_bag_outlined, label: 'Ventas', isSelected: _selectedIndex == 4, onTap: () => _navigateTo(4)),
+          _SidebarItem(icon: Icons.calendar_today_outlined, label: 'Agenda', isSelected: _selectedIndex == 5, onTap: () => _navigateTo(5)),
+          _SidebarItem(icon: Icons.attach_money, label: 'Finanzas', isSelected: _selectedIndex == 6, onTap: () => _navigateTo(6)),
           const Spacer(),
-          _SidebarItem(icon: Icons.settings_outlined, label: 'Configuración', isSelected: _selectedIndex == 6, onTap: () => _navigateTo(6)),
+          _SidebarItem(icon: Icons.settings_outlined, label: 'Configuración', isSelected: _selectedIndex == 7, onTap: () => _navigateTo(7)),
           const SizedBox(height: 24),
         ],
       ),
@@ -189,7 +196,10 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     final layout = ref.watch(settingsProvider.select((s) => s.dashboardLayout)) 
                    ?? DashboardWidgetIds.defaultLayout.map((id) => DashboardWidgetConfig(id: id)).toList();
     
-    final welcomeTitle = ref.watch(settingsProvider.select((s) => s.dashboardWelcomeTitle));
+    final userName = Supabase.instance.client.auth.currentUser?.userMetadata?['name']?.toString() ?? '';
+    final rawTitle = ref.watch(settingsProvider.select((s) => s.dashboardWelcomeTitle));
+    final welcomeTitle = rawTitle.replaceAll(RegExp(r'\{[Nn]ombre\}'), userName).trim();
+       
     final welcomeSubtitle = ref.watch(settingsProvider.select((s) => s.dashboardWelcomeSubtitle));
 
     ref.watch(dashboardStatsProvider); 
@@ -214,7 +224,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.refresh, color: AppTheme.primaryColor),
+                    icon: Icon(Icons.refresh, color: Theme.of(context).primaryColor),
                     tooltip: 'Sincronizar ahora',
                     onPressed: () async {
                       final success = await ref.read(ordersProvider.notifier).syncOrders();
@@ -250,8 +260,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 int cols = 4; 
                 
                 // Responsive adjustments
-                if (width < 600) cols = 2;
-                else if (width < 900) cols = 3;
+                if (width < 600) {
+                  cols = 2;
+                } else if (width < 900) {
+                  cols = 3;
+                }
                 // else if (width < 1100) cols = 3; // Maybe keep 3 longer? 
                 // > 900 -> 4 columns is standard desktop.
                 
@@ -316,8 +329,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
     // Target for DROPPING reordering
     return DragTarget<String>(
-      onWillAccept: (incomingId) => incomingId != null && incomingId != config.id,
-      onAccept: (incomingId) => _reorderWidget(incomingId, config.id),
+      onWillAcceptWithDetails: (details) => details.data != config.id,
+      onAcceptWithDetails: (details) => _reorderWidget(details.data, config.id),
       builder: (context, candidateData, rejectedData) {
          return widgetContent;
       },
@@ -440,21 +453,21 @@ class _SidebarItem extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.primaryColor.withOpacity(0.1) : Colors.transparent,
+          color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
             Icon(
               icon,
-              color: isSelected ? AppTheme.primaryColor : Theme.of(context).textTheme.bodyMedium?.color,
+              color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).textTheme.bodyMedium?.color,
               size: 22,
             ),
             const SizedBox(width: 16),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? AppTheme.primaryColor : Theme.of(context).textTheme.bodyMedium?.color,
+                color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).textTheme.bodyMedium?.color,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 fontSize: 16,
               ),

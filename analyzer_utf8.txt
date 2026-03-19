@@ -1,0 +1,35 @@
+﻿ERROR|COMPILE_TIME_ERROR|INVALID_CONSTANT|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|653|17|8|Invalid constant value.
+ERROR|COMPILE_TIME_ERROR|NON_CONSTANT_LIST_ELEMENT|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|653|17|8|The values in a const list literal must be constants.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_IDENTIFIER|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|653|17|8|Undefined name 'subtitle'.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|653|25|1|Expected to find ')'.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|653|25|1|Expected to find ']'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|693|13|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|693|13|1|Expected to find ')'.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|695|9|1|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|695|10|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|695|10|1|Unexpected text ';'.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|698|9|1|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|698|10|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|698|10|1|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|698|10|1|Unexpected text ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|699|7|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|699|7|1|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|699|7|1|Unexpected text ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|699|8|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|EXPECTED_TOKEN|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|699|8|1|Expected to find ';'.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|699|8|1|Unexpected text ';'.
+ERROR|SYNTACTIC_ERROR|MISSING_IDENTIFIER|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|700|5|1|Expected an identifier.
+ERROR|SYNTACTIC_ERROR|UNEXPECTED_TOKEN|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|700|5|1|Unexpected text ';'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_METHOD|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|783|29|16|The method 'bulkExportOrders' isn't defined for the type 'GoogleCloudService'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_METHOD|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|784|29|18|The method 'bulkExportExpenses' isn't defined for the type 'GoogleCloudService'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_METHOD|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|785|29|17|The method 'bulkExportIncomes' isn't defined for the type 'GoogleCloudService'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_METHOD|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|786|29|19|The method 'bulkExportCustomers' isn't defined for the type 'GoogleCloudService'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_METHOD|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|787|29|18|The method 'bulkExportProducts' isn't defined for the type 'GoogleCloudService'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_METHOD|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|788|29|19|The method 'bulkExportInventory' isn't defined for the type 'GoogleCloudService'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_METHOD|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|789|29|24|The method 'bulkExportStockMovements' isn't defined for the type 'GoogleCloudService'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_METHOD|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|790|29|20|The method 'bulkExportCategories' isn't defined for the type 'GoogleCloudService'.
+ERROR|COMPILE_TIME_ERROR|UNDEFINED_METHOD|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|793|29|16|The method 'importFromSheets' isn't defined for the type 'GoogleCloudService'.
+WARNING|STATIC_WARNING|UNUSED_ELEMENT|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|618|8|28|The declaration '_showGoogleCredentialsDialog' isn't referenced.
+WARNING|STATIC_WARNING|UNUSED_ELEMENT|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|644|8|23|The declaration '_showAdvancedSyncDialog' isn't referenced.
+WARNING|STATIC_WARNING|UNUSED_LABEL|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|696|9|8|The label 'actions' isn't used.
+INFO|LINT|EMPTY_STATEMENTS|C:\\Users\\jaime\\AppPapeleria\\lib\\features\\settings\\presentation\\pages\\settings_page.dart|700|6|1|Unnecessary empty statement.

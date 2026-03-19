@@ -1,16 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../../data/models/product_model.dart';
-import '../../data/repositories/product_repository_impl.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/repositories/product_repository.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
-import '../../../../core/services/google_cloud_service.dart';
+import '../../data/repositories/offline_first_product_repository.dart';
+import '../../../../core/services/sync_manager.dart';
+import '../../../../core/providers/remote_repositories_providers.dart';
 
 // Repository Provider
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
   final box = Hive.box<ProductModel>('products');
-  return ProductRepositoryImpl(box);
+  final remoteRepo = ref.watch(remoteProductRepositoryProvider);
+  final syncManager = ref.watch(syncManagerProvider);
+  
+  return OfflineFirstProductRepository(remoteRepo, box, syncManager);
+});
+
+// Stream Provider for reactive UI updates
+final productListStreamProvider = StreamProvider<List<ProductEntity>>((ref) {
+  final repository = ref.watch(productRepositoryProvider);
+  return repository.watchProducts();
 });
 
 // State Notifier to manage the list of products
@@ -32,16 +41,11 @@ class ProductListNotifier extends StateNotifier<AsyncValue<List<ProductEntity>>>
 
   Future<void> addProduct(ProductEntity product, WidgetRef ref) async {
     final result = await repository.addProduct(product);
-    result.fold(
-      (failure) {
-        // Handle error if needed
+    await result.fold(
+      (failure) async {
+        throw Exception(failure.message);
       },
       (_) async {
-        // Sync to Google Sheets if enabled
-        final settings = ref.read(settingsProvider);
-        if (settings.syncSheetsEnabled && settings.googleSheetId != null) {
-          await GoogleCloudService().appendProductToSheet(settings.googleSheetId!, product);
-        }
         getProducts();
       },
     );
@@ -49,16 +53,11 @@ class ProductListNotifier extends StateNotifier<AsyncValue<List<ProductEntity>>>
 
   Future<void> updateProduct(ProductEntity product, WidgetRef ref) async {
     final result = await repository.updateProduct(product);
-    result.fold(
-      (failure) {
-        // Handle error
+    await result.fold(
+      (failure) async {
+        throw Exception(failure.message);
       },
       (_) async {
-        // Sync to Google Sheets if enabled
-        final settings = ref.read(settingsProvider);
-        if (settings.syncSheetsEnabled && settings.googleSheetId != null) {
-          await GoogleCloudService().appendProductToSheet(settings.googleSheetId!, product);
-        }
         getProducts();
       },
     );
@@ -66,9 +65,11 @@ class ProductListNotifier extends StateNotifier<AsyncValue<List<ProductEntity>>>
 
   Future<void> deleteProduct(String id) async {
     final result = await repository.deleteProduct(id);
-    result.fold(
-      (failure) {},
-      (_) => getProducts(),
+    await result.fold(
+      (failure) async {
+        throw Exception(failure.message);
+      },
+      (_) async => getProducts(),
     );
   }
 }

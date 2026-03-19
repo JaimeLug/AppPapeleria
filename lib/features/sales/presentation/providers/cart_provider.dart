@@ -1,20 +1,27 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:hive/hive.dart';
 import '../../../inventory/domain/entities/product.dart';
-import '../../data/models/order_item_model.dart';
 import '../../data/models/order_model.dart';
-import '../../data/repositories/order_repository_impl.dart';
+
 import '../../domain/entities/order.dart';
 import '../../domain/entities/order_item.dart';
 import '../../../../core/services/pdf_service.dart';
 import '../../domain/repositories/order_repository.dart';
-import 'package:app_papeleria/features/settings/presentation/providers/settings_provider.dart';
+import '../../../settings/presentation/providers/settings_provider.dart';
+
+import '../../data/repositories/offline_first_order_repository.dart';
+import '../../../../core/services/sync_manager.dart';
+import '../../../../core/providers/remote_repositories_providers.dart';
 
 // Repository Provider
 final orderRepositoryProvider = Provider<OrderRepository>((ref) {
   final box = Hive.box<OrderModel>('orders');
-  return OrderRepositoryImpl(box);
+  final remoteRepo = ref.watch(remoteOrderRepositoryProvider);
+  final syncManager = ref.watch(syncManagerProvider);
+  
+  return OfflineFirstOrderRepository(remoteRepo, box, syncManager);
 });
 
 // Cart State
@@ -29,6 +36,11 @@ class CartState {
   final String? errorMessage;
   final bool isSuccess;
 
+  // New fields for extra costs and notes
+  final String extraConcept;
+  final double extraAmount;
+  final String generalNote;
+
   const CartState({
     this.items = const [],
     this.customerName = '',
@@ -39,10 +51,13 @@ class CartState {
     this.errorMessage,
     this.isSuccess = false,
     this.isFullyPaid = false,
+    this.extraConcept = '',
+    this.extraAmount = 0.0,
+    this.generalNote = '',
   });
 
   double get subtotal => items.fold(0, (sum, item) => sum + item.total);
-  double get total => subtotal; // Can add tax or discounts here
+  double get total => subtotal + extraAmount; // Include extra amount
   double get pendingBalance => isFullyPaid ? 0.0 : total - advancePayment;
 
   CartState copyWith({
@@ -55,6 +70,9 @@ class CartState {
     String? errorMessage,
     bool? isSuccess,
     bool? isFullyPaid,
+    String? extraConcept,
+    double? extraAmount,
+    String? generalNote,
   }) {
     return CartState(
       items: items ?? this.items,
@@ -66,6 +84,9 @@ class CartState {
       errorMessage: errorMessage, // Reset if not provided, or logic can vary
       isSuccess: isSuccess ?? this.isSuccess,
       isFullyPaid: isFullyPaid ?? this.isFullyPaid,
+      extraConcept: extraConcept ?? this.extraConcept,
+      extraAmount: extraAmount ?? this.extraAmount,
+      generalNote: generalNote ?? this.generalNote,
     );
   }
 }
@@ -76,28 +97,25 @@ class CartNotifier extends StateNotifier<CartState> {
 
   CartNotifier(this.repository) : super(const CartState());
 
-  void addItem(ProductEntity product) {
+  void addItem(ProductEntity product, {int quantity = 1}) {
     if (state.items.any((item) => item.productId == product.id)) {
       // Increment quantity if exists
       final existingItem = state.items.firstWhere((item) => item.productId == product.id);
-      updateQuantity(product.id, existingItem.quantity + 1);
+      updateQuantity(product.id, existingItem.quantity + quantity);
     } else {
       // Add new item
       final newItem = OrderItemEntity(
         productId: product.id,
         productName: product.name,
         price: product.basePrice + product.extraCost,
-        quantity: 1,
+        quantity: quantity,
         notes: product.notes,
       );
       state = state.copyWith(items: [...state.items, newItem]);
       
       // Auto-update advance if fully paid
       if (state.isFullyPaid) {
-        // Calculate new total
-        final newItems = [...state.items, newItem];
-        final newTotal = newItems.fold(0.0, (sum, item) => sum + item.total);
-        state = state.copyWith(advancePayment: newTotal);
+        state = state.copyWith(advancePayment: state.total);
       }
     }
   }
@@ -106,8 +124,7 @@ class CartNotifier extends StateNotifier<CartState> {
     final newItems = state.items.where((item) => item.productId != productId).toList();
     state = state.copyWith(items: newItems);
      if (state.isFullyPaid) {
-        final newTotal = newItems.fold(0.0, (sum, item) => sum + item.total);
-        state = state.copyWith(advancePayment: newTotal);
+        state = state.copyWith(advancePayment: state.total);
       }
   }
 
@@ -125,8 +142,7 @@ class CartNotifier extends StateNotifier<CartState> {
     
     state = state.copyWith(items: newItems);
     if (state.isFullyPaid) {
-        final newTotal = newItems.fold(0.0, (sum, item) => sum + item.total);
-        state = state.copyWith(advancePayment: newTotal);
+        state = state.copyWith(advancePayment: state.total);
     }
   }
 
@@ -183,6 +199,22 @@ class CartNotifier extends StateNotifier<CartState> {
     );
   }
 
+  // New methods for extra costs and notes
+  void setExtraConcept(String concept) {
+    state = state.copyWith(extraConcept: concept);
+  }
+
+  void setExtraAmount(double amount) {
+    state = state.copyWith(extraAmount: amount);
+    if (state.isFullyPaid) {
+      state = state.copyWith(advancePayment: state.total);
+    }
+  }
+
+  void setGeneralNote(String note) {
+    state = state.copyWith(generalNote: note);
+  }
+
   void clearCart() {
     state = const CartState();
   }
@@ -192,19 +224,30 @@ class CartNotifier extends StateNotifier<CartState> {
   }
 
   Future<void> confirmSale(AppSettings settings) async {
-    print('LOG: Inicio de venta...');
+    debugPrint('LOG: Inicio de venta...');
     state = state.copyWith(isLoading: true, errorMessage: null, isSuccess: false);
 
     // 1. Validation
     if (state.items.isEmpty) {
-      print('LOG: Error - Carrito vacío');
+      debugPrint('LOG: Error - Carrito vacío');
       state = state.copyWith(isLoading: false, errorMessage: 'El carrito está vacío');
       return;
     }
     if (state.customerName.trim().isEmpty) {
-       print('LOG: Error - Falta nombre de cliente');
+       debugPrint('LOG: Error - Falta nombre de cliente');
        state = state.copyWith(isLoading: false, errorMessage: 'Debes ingresar el nombre del cliente');
        return;
+    }
+    // Validation for extra costs
+    if (state.extraAmount > 0 && state.extraConcept.trim().isEmpty) {
+      state = state.copyWith(isLoading: false, errorMessage: 'Debes especificar el concepto del cargo extra');
+      return;
+    }
+
+    // Construct Notes
+    String finalNotes = state.generalNote;
+    if (state.extraAmount > 0) {
+      finalNotes += '${finalNotes.isNotEmpty ? ' | ' : ''}Extra: ${state.extraConcept} (\$${state.extraAmount.toStringAsFixed(2)})';
     }
 
     final isPaid = state.isFullyPaid || (state.advancePayment >= state.total);
@@ -221,14 +264,16 @@ class CartNotifier extends StateNotifier<CartState> {
       status: 'Diseño',
       paymentStatus: isPaid ? 'paid' : 'pending',
       deliveryStatus: 'pending',
+      notes: finalNotes.isNotEmpty ? finalNotes : null,
+      updatedAt: DateTime.now(),
     );
 
     try {
       // Paso 1: Guardar en Hive (Critical)
-      print('LOG: Intentando guardar pedido en Hive...');
+      debugPrint('LOG: Intentando guardar pedido en Hive...');
       // Ensure box is open just in case, though main should handle it.
       if (!Hive.isBoxOpen('orders')) {
-         print('LOG: Orders box not open, opening now...');
+         debugPrint('LOG: Orders box not open, opening now...');
          await Hive.openBox<OrderModel>('orders');
       }
 
@@ -236,20 +281,20 @@ class CartNotifier extends StateNotifier<CartState> {
       
       await result.fold(
         (failure) async {
-          print('LOG: Error al guardar en Hive: ${failure.message}');
+          debugPrint('LOG: Error al guardar en Hive: ${failure.message}');
           state = state.copyWith(isLoading: false, errorMessage: 'Error al guardar: ${failure.message}');
         },
         (syncSuccess) async {
-           print('LOG: Pedido guardado con éxito. ID: ${order.id}. Synced: $syncSuccess');
+           debugPrint('LOG: Pedido guardado con éxito. ID: ${order.id}. Synced: $syncSuccess');
            
            // Paso 3: PDF (Opcional/Riesgoso)
            try {
-              print('LOG: Intentando generar PDF...');
+              debugPrint('LOG: Intentando generar PDF...');
               final pdfService = PdfService();
               await pdfService.generateAndPrintReceipt(order, settings);
-              print('LOG: PDF generado correctamente');
+              debugPrint('LOG: PDF generado correctamente');
            } catch (e) {
-              print('LOG: Error generando PDF: $e');
+              debugPrint('LOG: Error generando PDF: $e');
               // Non-critical error, order is saved.
               // We could warn, but sync status is more important.
            }
@@ -266,7 +311,7 @@ class CartNotifier extends StateNotifier<CartState> {
         },
       );
     } catch (e) {
-      print('LOG: Excepción no controlada en confirmSale: $e');
+      debugPrint('LOG: Excepción no controlada en confirmSale: $e');
        state = state.copyWith(isLoading: false, errorMessage: 'Error crítico: $e');
     }
   }

@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../sales/presentation/providers/customer_provider.dart';
 import '../../../sales/domain/entities/customer.dart';
 import '../../../sales/data/models/customer_model.dart';
-import '../providers/settings_provider.dart';
-import '../../../../core/services/google_cloud_service.dart';
 import 'package:uuid/uuid.dart';
 
 class CustomerManagerDialog extends ConsumerStatefulWidget {
@@ -78,62 +76,9 @@ class _CustomerManagerDialogState extends ConsumerState<CustomerManagerDialog> {
   }
 
   void _showEditDialog(BuildContext context, CustomerModel? customer) {
-    final nameController = TextEditingController(text: customer?.name ?? '');
-    final phoneController = TextEditingController(text: customer?.phone ?? '');
-    final isEditing = customer != null;
-
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isEditing ? 'Editar Cliente' : 'Nuevo Cliente'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: 'Nombre'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: phoneController,
-              decoration: const InputDecoration(labelText: 'Teléfono'),
-              keyboardType: TextInputType.phone,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-          ElevatedButton(
-            onPressed: () async {
-              final newName = nameController.text.trim();
-              final newPhone = phoneController.text.trim();
-
-              if (newName.isNotEmpty) {
-                 Navigator.pop(context);
-                 
-                 final updatedCustomer = CustomerEntity(
-                   id: customer?.id ?? const Uuid().v4(),
-                   name: newName,
-                   phone: newPhone,
-                 );
-
-                 await ref.read(customerRepositoryProvider).saveCustomer(updatedCustomer);
-                 print('LOG: Cliente guardado - ID: ${updatedCustomer.id}, Nombre: ${updatedCustomer.name}');
-                 
-                 // Use invalidate instead of refresh to properly update the UI
-                 ref.invalidate(customerListProvider);
-
-                 if (mounted) {
-                   ScaffoldMessenger.of(context).showSnackBar(
-                     SnackBar(content: Text(isEditing ? 'Cliente actualizado' : 'Cliente guardado'))
-                   );
-                 }
-              }
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
+      builder: (context) => _EditCustomerDialogBody(customer: customer),
     );
   }
 
@@ -148,21 +93,111 @@ class _CustomerManagerDialogState extends ConsumerState<CustomerManagerDialog> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () async {
-               Navigator.pop(context);
-               
-               await ref.read(customerRepositoryProvider).deleteCustomer(customer.id);
-               print('LOG: Cliente eliminado - ID: ${customer.id}');
-               
-               ref.invalidate(customerListProvider);
+               try {
+                 await ref.read(customerRepositoryProvider).deleteCustomer(customer.id);
+                 // debugPrint('LOG: Cliente eliminado - ID: ${customer.id}');
+                 
+                 ref.invalidate(customerListProvider);
 
-               if (mounted) {
+                 if (!context.mounted) return;
+                 Navigator.pop(context);
                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cliente eliminado')));
+               } catch (e) {
+                 ref.invalidate(customerListProvider);
+                 if (!context.mounted) return;
+                 Navigator.pop(context);
+                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                   content: Text(e.toString().replaceAll('Exception: ', '')),
+                   backgroundColor: Colors.orange,
+                   duration: const Duration(seconds: 4),
+                 ));
                }
             },
             child: const Text('Eliminar'),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _EditCustomerDialogBody extends ConsumerStatefulWidget {
+  final CustomerModel? customer;
+
+  const _EditCustomerDialogBody({this.customer});
+
+  @override
+  ConsumerState<_EditCustomerDialogBody> createState() => _EditCustomerDialogBodyState();
+}
+
+class _EditCustomerDialogBodyState extends ConsumerState<_EditCustomerDialogBody> {
+  late final TextEditingController nameController;
+  late final TextEditingController phoneController;
+
+  @override
+  void initState() {
+    super.initState();
+    nameController = TextEditingController(text: widget.customer?.name);
+    phoneController = TextEditingController(text: widget.customer?.phone);
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    phoneController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEditing = widget.customer != null;
+    return AlertDialog(
+      title: Text(isEditing ? 'Editar Cliente' : 'Nuevo Cliente'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: nameController,
+            decoration: const InputDecoration(labelText: 'Nombre Completo'),
+          ),
+          TextField(
+            controller: phoneController,
+            decoration: const InputDecoration(labelText: 'Teléfono (Opcional)'),
+            keyboardType: TextInputType.phone,
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        ElevatedButton(
+          onPressed: () async {
+            if (nameController.text.isNotEmpty) {
+              final newCustomer = CustomerEntity(
+                id: widget.customer?.id ?? const Uuid().v4(),
+                name: nameController.text.trim(),
+                phone: phoneController.text.trim(),
+              );
+
+              try {
+                await ref.read(customerRepositoryProvider).saveCustomer(CustomerModel.fromEntity(newCustomer));
+                if (context.mounted) {
+                   Navigator.pop(context);
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(e.toString().replaceAll('Exception: ', '')),
+                    backgroundColor: Colors.orange,
+                    duration: const Duration(seconds: 4),
+                  ));
+                }
+              }
+            }
+          },
+          child: Text(isEditing ? 'Guardar' : 'Crear'),
+        ),
+      ],
     );
   }
 }

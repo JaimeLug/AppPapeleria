@@ -39,25 +39,25 @@ class _DashboardWidgetWrapperState extends State<DashboardWidgetWrapper> {
     final isColored = widget.backgroundColor != null || widget.backgroundGradient != null;
     
     // Determine colors
-    final textColor = widget.overrideTextColor ?? (isColored ? Colors.white : AppTheme.primaryColor);
-    final iconColor = widget.overrideIconColor ?? (isColored ? Colors.white.withOpacity(0.8) : Theme.of(context).iconTheme.color?.withOpacity(0.3));
+    final textColor = widget.overrideTextColor ?? (isColored ? Colors.white : Theme.of(context).primaryColor);
+    final iconColor = widget.overrideIconColor ?? (isColored ? Colors.white.withValues(alpha: 0.8) : Theme.of(context).iconTheme.color?.withValues(alpha: 0.3));
 
     return Container(
       decoration: BoxDecoration(
         color: widget.isDragging 
-            ? (widget.backgroundColor?.withOpacity(0.5) ?? Colors.white.withOpacity(0.5)) 
+            ? (widget.backgroundColor?.withValues(alpha: 0.5) ?? Colors.white.withValues(alpha: 0.5)) 
             : (widget.backgroundColor ?? Theme.of(context).cardColor),
         gradient: widget.backgroundGradient,
         borderRadius: BorderRadius.circular(20),
         boxShadow: widget.isDragging ? [] : [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
         border: widget.isDragging 
-            ? Border.all(color: AppTheme.primaryColor.withOpacity(0.5), width: 2) 
+            ? Border.all(color: Theme.of(context).primaryColor.withValues(alpha: 0.5), width: 2) 
             : null,
       ),
       child: Stack(

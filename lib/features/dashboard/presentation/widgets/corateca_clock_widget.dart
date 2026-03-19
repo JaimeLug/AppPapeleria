@@ -39,13 +39,13 @@ class _CoratecaClockWidgetState extends State<CoratecaClockWidget> {
       backgroundGradient: LinearGradient(
         colors: [
           Colors.white,
-          AppTheme.primaryColor.withOpacity(0.05),
+          Theme.of(context).primaryColor.withValues(alpha: 0.05),
         ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      overrideTextColor: AppTheme.primaryColor,
-      overrideIconColor: AppTheme.primaryColor.withOpacity(0.5),
+      overrideTextColor: Theme.of(context).primaryColor,
+      overrideIconColor: Theme.of(context).primaryColor.withValues(alpha: 0.5),
       child: StreamBuilder<DateTime>(
         stream: _timerStream,
         initialData: DateTime.now(),
@@ -60,7 +60,7 @@ class _CoratecaClockWidgetState extends State<CoratecaClockWidget> {
                   style: GoogleFonts.outfit(
                     fontSize: 32,
                     fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryColor,
+                    color: Theme.of(context).primaryColor,
                     letterSpacing: 2,
                   ),
                 ),
