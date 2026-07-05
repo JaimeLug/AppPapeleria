@@ -23,8 +23,8 @@ class StockMovementModelAdapter extends TypeAdapter<StockMovementModel> {
       quantity: fields[3] as double,
       date: fields[4] as DateTime?,
       reason: fields[5] as String,
-      isItemDeleted: (fields[6] as bool?) ?? false,
-      isSynced: (fields[7] as bool?) ?? false,
+      isItemDeleted: fields[6] as bool,
+      isSynced: fields[7] as bool,
       updatedAt: fields[8] as DateTime?,
     );
   }

@@ -11,6 +11,7 @@ import '../providers/customer_provider.dart';
 import '../widgets/quantity_dialog.dart';
 import 'package:uuid/uuid.dart';
 import 'package:app_papeleria/features/settings/presentation/providers/settings_provider.dart';
+import 'package:app_papeleria/features/settings/presentation/providers/theme_provider.dart';
 
 class SalesPage extends ConsumerWidget {
   const SalesPage({super.key});
@@ -648,7 +649,8 @@ class _CartSummaryState extends ConsumerState<_CartSummary> {
 
                         // Check result
                         final settings = ref.read(settingsProvider);
-                        await ref.read(cartProvider.notifier).confirmSale(settings);
+                        final logo = ref.read(currentBrandConfigProvider).logoBase64;
+                        await ref.read(cartProvider.notifier).confirmSale(settings, logoBase64: logo);
                         if (!context.mounted) return;
                         
                         final newState = ref.read(cartProvider);

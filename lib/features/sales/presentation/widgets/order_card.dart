@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../domain/entities/order.dart';
 import '../../../../core/services/pdf_service.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
+import '../../../settings/presentation/providers/theme_provider.dart';
 import '../providers/orders_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -131,7 +132,8 @@ class OrderCard extends ConsumerWidget {
           ElevatedButton.icon(
             onPressed: () {
               final settings = ref.read(settingsProvider);
-              PdfService().generateAndPrintReceipt(order, settings);
+              final logo = ref.read(currentBrandConfigProvider).logoBase64;
+              PdfService().generateAndPrintReceipt(order, settings, logoBase64: logo);
             },
             icon: const Icon(Icons.print),
             label: const Text('Reimprimir Ticket'),

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -6,14 +7,18 @@ import '../../features/sales/domain/entities/order.dart';
 import '../../features/settings/presentation/providers/settings_provider.dart';
 
 class PdfService {
-  Future<void> generateAndPrintReceipt(OrderEntity order, AppSettings settings) async {
+  Future<void> generateAndPrintReceipt(
+    OrderEntity order,
+    AppSettings settings, {
+    String? logoBase64,
+  }) async {
     final doc = pw.Document();
 
     final font = await PdfGoogleFonts.quicksandRegular();
     final fontBold = await PdfGoogleFonts.quicksandBold();
-    
-    // Load Logo
-    final logoImage = await imageFromAssetBundle('assets/images/logo.png');
+
+    // Logo del negocio (si se subió) o el logo por defecto.
+    final pw.ImageProvider logoImage = await _resolveLogo(logoBase64);
 
     doc.addPage(
       pw.Page(
@@ -155,6 +160,17 @@ class PdfService {
       onLayout: (PdfPageFormat format) async => doc.save(),
       name: 'Recibo_${order.id.substring(0, 8)}',
     );
+  }
+
+  Future<pw.ImageProvider> _resolveLogo(String? logoBase64) async {
+    if (logoBase64 != null && logoBase64.isNotEmpty) {
+      try {
+        return pw.MemoryImage(base64Decode(logoBase64));
+      } catch (_) {
+        // base64 corrupto -> logo por defecto.
+      }
+    }
+    return imageFromAssetBundle('assets/images/logo.png');
   }
 
   pw.Widget _buildRow(String label, double amount, pw.Font font, {double fontSize = 10, bool isRed = false}) {

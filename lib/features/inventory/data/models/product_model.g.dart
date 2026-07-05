@@ -23,8 +23,8 @@ class ProductModelAdapter extends TypeAdapter<ProductModel> {
       extraCost: fields[3] as double,
       category: fields[4] as String,
       notes: fields[5] as String?,
-      isSynced: (fields[6] as bool?) ?? false,
-      updatedAt: (fields[7] as DateTime?) ?? DateTime.now(),
+      isSynced: fields[6] as bool,
+      updatedAt: fields[7] as DateTime,
     );
   }
 

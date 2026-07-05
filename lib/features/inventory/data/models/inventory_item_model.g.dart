@@ -25,8 +25,8 @@ class InventoryItemModelAdapter extends TypeAdapter<InventoryItemModel> {
       currentStock: fields[5] as double,
       minimumStock: fields[6] as double,
       unitCost: fields[7] as double,
-      isDeleted: (fields[8] as bool?) ?? false,
-      isSynced: (fields[9] as bool?) ?? false,
+      isDeleted: fields[8] as bool,
+      isSynced: fields[9] as bool,
       updatedAt: fields[10] as DateTime?,
     );
   }

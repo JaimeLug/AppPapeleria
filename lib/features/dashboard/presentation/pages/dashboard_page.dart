@@ -14,6 +14,7 @@ import '../../../finance/presentation/pages/expenses_page.dart';
 import '../../../sales/presentation/providers/orders_provider.dart';
 import 'package:app_papeleria/features/settings/presentation/pages/settings_page.dart';
 import 'package:app_papeleria/features/settings/presentation/providers/settings_provider.dart';
+import 'package:app_papeleria/features/settings/presentation/widgets/brand_logo.dart';
 import 'package:app_papeleria/features/auth/presentation/logout_helper.dart';
 import '../../domain/models/dashboard_widget_config.dart';
 // Needed for type checking/stack wrapping if explicit
@@ -157,7 +158,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
             alignment: Alignment.centerLeft,
             child: Row(
               children: [
-                Image.asset('assets/images/logo.png', height: 40, fit: BoxFit.contain),
+                const BrandLogo(height: 40),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(

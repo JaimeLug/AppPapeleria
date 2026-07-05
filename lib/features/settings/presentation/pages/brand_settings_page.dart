@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../providers/theme_provider.dart';
 import '../providers/settings_provider.dart';
 import '../../domain/models/brand_config_model.dart';
@@ -17,7 +19,11 @@ class _BrandSettingsPageState extends ConsumerState<BrandSettingsPage> {
   late TextEditingController _nameController;
   late Color _primaryColor;
   late Color _accentColor;
-  
+  String? _logoBase64;
+
+  // Límite del tamaño de imagen para no inflar la base de datos.
+  static const int _maxLogoBytes = 500 * 1024; // 500 KB
+
   // Business Profile
   late TextEditingController _phoneController;
   late TextEditingController _addressController;
@@ -32,6 +38,7 @@ class _BrandSettingsPageState extends ConsumerState<BrandSettingsPage> {
     _nameController = TextEditingController(text: config.appName);
     _primaryColor = Color(config.primaryColorHex);
     _accentColor = Color(config.accentColorHex);
+    _logoBase64 = config.logoBase64;
 
     final settings = ref.read(settingsProvider);
     _phoneController = TextEditingController(text: settings.businessPhone);
@@ -60,6 +67,10 @@ class _BrandSettingsPageState extends ConsumerState<BrandSettingsPage> {
             const Text('Identidad Visual', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.grey)),
             const Divider(),
             const SizedBox(height: 16),
+            const Text('Logo del Negocio', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            _buildLogoSection(),
+            const SizedBox(height: 24),
             const Text('Nombre de la Aplicación', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             TextField(
@@ -128,6 +139,75 @@ class _BrandSettingsPageState extends ConsumerState<BrandSettingsPage> {
     );
   }
 
+  Widget _buildLogoSection() {
+    final hasLogo = _logoBase64 != null && _logoBase64!.isNotEmpty;
+    return Row(
+      children: [
+        Container(
+          height: 96,
+          width: 96,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.black12),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: hasLogo
+              ? Image.memory(base64Decode(_logoBase64!), fit: BoxFit.contain)
+              : const Icon(Icons.image_outlined, size: 40, color: Colors.grey),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              OutlinedButton.icon(
+                onPressed: _pickLogo,
+                icon: const Icon(Icons.upload_outlined),
+                label: Text(hasLogo ? 'Cambiar logo' : 'Subir logo'),
+              ),
+              if (hasLogo)
+                TextButton.icon(
+                  onPressed: () => setState(() => _logoBase64 = null),
+                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                  label: const Text('Quitar logo', style: TextStyle(color: Colors.redAccent)),
+                ),
+              const Text(
+                'PNG o JPG, máximo 500 KB. Se usará en el menú, tickets y el ícono de la ventana.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickLogo() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    final bytes = result.files.first.bytes;
+    if (bytes == null) return;
+
+    if (bytes.length > _maxLogoBytes) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('La imagen es muy grande (máx. 500 KB). Usa una versión más ligera.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _logoBase64 = base64Encode(bytes));
+  }
+
   Widget _buildColorPickerColumn(String title, Color currentColor, ValueChanged<Color> onColorChanged) {
     return Expanded(
       child: Column(
@@ -181,6 +261,7 @@ class _BrandSettingsPageState extends ConsumerState<BrandSettingsPage> {
       primaryColorHex: _primaryColor.toARGB32(),
       accentColorHex: _accentColor.toARGB32(),
       updatedAt: DateTime.now(),
+      logoBase64: _logoBase64,
     );
     await repo.updateConfig(newConfig);
 

@@ -23,8 +23,11 @@ create table if not exists public.brand_settings (
   app_name          text        not null default 'Papelería Pro',
   primary_color_hex bigint      not null default 4287349434, -- 0xFF8E24AA
   accent_color_hex  bigint      not null default 4290083016, -- 0xFFBA68C8
+  logo_base64       text,                                    -- logo del negocio (base64)
   updated_at        timestamptz not null default now()
 );
+-- Para bases ya creadas sin la columna del logo:
+alter table public.brand_settings add column if not exists logo_base64 text;
 
 -- ------------------------------------------------------------------
 -- 2. products  (catálogo de venta)

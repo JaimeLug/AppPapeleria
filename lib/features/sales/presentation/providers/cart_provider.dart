@@ -223,7 +223,7 @@ class CartNotifier extends StateNotifier<CartState> {
      state = state.copyWith(errorMessage: null, isSuccess: false, isLoading: false);
   }
 
-  Future<void> confirmSale(AppSettings settings) async {
+  Future<void> confirmSale(AppSettings settings, {String? logoBase64}) async {
     debugPrint('LOG: Inicio de venta...');
     state = state.copyWith(isLoading: true, errorMessage: null, isSuccess: false);
 
@@ -291,7 +291,7 @@ class CartNotifier extends StateNotifier<CartState> {
            try {
               debugPrint('LOG: Intentando generar PDF...');
               final pdfService = PdfService();
-              await pdfService.generateAndPrintReceipt(order, settings);
+              await pdfService.generateAndPrintReceipt(order, settings, logoBase64: logoBase64);
               debugPrint('LOG: PDF generado correctamente');
            } catch (e) {
               debugPrint('LOG: Error generando PDF: $e');

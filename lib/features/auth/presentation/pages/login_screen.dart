@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_providers.dart';
 import '../../data/credential_store.dart';
+import '../../../settings/presentation/providers/theme_provider.dart';
+import '../../../settings/presentation/widgets/brand_logo.dart';
 // Typical standard path in this project
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -86,6 +88,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     // Watch login state for loading spinner
     final loginState = ref.watch(loginControllerProvider);
+    final brand = ref.watch(currentBrandConfigProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -100,22 +103,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // App Branding / Logo simulation
-                  const Icon(
-                    Icons.store_mall_directory_rounded,
-                    size: 80,
-                    color: Colors.blueAccent, // Use AppTheme.primary if possible, standardizing blue for now
-                  ),
+                  // App Branding / Logo
+                  const BrandLogo(height: 80),
                   const SizedBox(height: 16),
                   const Text(
                     'Bienvenido a',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
-                  const Text(
-                    'Papelería App',
+                  Text(
+                    brand.appName,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                       letterSpacing: -0.5,

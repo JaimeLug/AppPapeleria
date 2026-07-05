@@ -16,11 +16,17 @@ class BrandConfigModel extends HiveObject {
   @HiveField(3)
   DateTime updatedAt;
 
+  /// Logo del negocio en base64 (sin prefijo data:). Null = usar el logo por
+  /// defecto de la app. Se sincroniza junto con el resto de la marca.
+  @HiveField(4)
+  String? logoBase64;
+
   BrandConfigModel({
     required this.appName,
     required this.primaryColorHex,
     required this.accentColorHex,
     required this.updatedAt,
+    this.logoBase64,
   });
 
   factory BrandConfigModel.fromJson(Map<String, dynamic> json) {
@@ -29,6 +35,7 @@ class BrandConfigModel extends HiveObject {
       primaryColorHex: json['primary_color_hex'] as int,
       accentColorHex: json['accent_color_hex'] as int,
       updatedAt: DateTime.parse(json['updated_at'] as String),
+      logoBase64: json['logo_base64'] as String?,
     );
   }
 
@@ -38,6 +45,7 @@ class BrandConfigModel extends HiveObject {
       'primary_color_hex': primaryColorHex,
       'accent_color_hex': accentColorHex,
       'updated_at': updatedAt.toIso8601String(),
+      'logo_base64': logoBase64,
     };
   }
 }

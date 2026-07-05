@@ -20,8 +20,8 @@ class CustomerModelAdapter extends TypeAdapter<CustomerModel> {
       id: fields[0] as String,
       name: fields[1] as String,
       phone: fields[2] as String,
-      isSynced: (fields[3] as bool?) ?? false,
-      updatedAt: (fields[4] as DateTime?) ?? DateTime.now(),
+      isSynced: fields[3] as bool,
+      updatedAt: fields[4] as DateTime,
     );
   }
 
