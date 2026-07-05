@@ -178,8 +178,8 @@ class _BrandSettingsPageState extends ConsumerState<BrandSettingsPage> {
     final repo = ref.read(brandRepositoryProvider);
     final newConfig = BrandConfigModel(
       appName: _nameController.text.trim(),
-      primaryColorHex: _primaryColor.value,
-      accentColorHex: _accentColor.value,
+      primaryColorHex: _primaryColor.toARGB32(),
+      accentColorHex: _accentColor.toARGB32(),
       updatedAt: DateTime.now(),
     );
     await repo.updateConfig(newConfig);

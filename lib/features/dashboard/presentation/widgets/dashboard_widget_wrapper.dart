@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../config/theme/app_theme.dart';
 
 class DashboardWidgetWrapper extends StatefulWidget {
   final Widget child;

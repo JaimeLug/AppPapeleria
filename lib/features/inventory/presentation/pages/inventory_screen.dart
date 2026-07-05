@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../config/theme/app_theme.dart';
 import '../providers/inventory_provider.dart';
 import '../widgets/inventory_item_dialog.dart';
 import '../widgets/stock_adjustment_modal.dart';

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../config/theme/app_theme.dart';
 import '../utils/dashboard_widgets_registry.dart';
 
 class AddWidgetSheet extends StatelessWidget {

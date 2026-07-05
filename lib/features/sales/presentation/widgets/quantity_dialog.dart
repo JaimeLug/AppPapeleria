@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../../config/theme/app_theme.dart';
 import '../../../inventory/domain/entities/product.dart';
 
 class QuantitySelectionDialog extends StatefulWidget {

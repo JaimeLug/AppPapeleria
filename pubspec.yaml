@@ -19,11 +19,6 @@ dependencies:
   hive: ^2.2.3
   hive_flutter: ^1.1.0
 
-  # Google Integration
-  # gsheets removed due to http dependency conflict with googleapis_auth
-  googleapis: ^13.1.0
-  googleapis_auth: ^1.6.0
-
   # PDF & Printing
   pdf: ^3.11.1
   printing: ^5.13.1
