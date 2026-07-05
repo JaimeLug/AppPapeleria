@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_providers.dart';
+import '../../data/credential_store.dart';
 // Typical standard path in this project
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -15,6 +16,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSavedCredentials();
+  }
+
+  /// Precarga email y contraseña si el usuario los había recordado.
+  Future<void> _loadSavedCredentials() async {
+    final saved = await CredentialStore.load();
+    if (saved != null && mounted) {
+      setState(() {
+        _emailController.text = saved.email;
+        _passwordController.text = saved.password;
+        _rememberMe = true;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -32,10 +52,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final password = _passwordController.text;
 
       final success = await ref.read(loginControllerProvider.notifier).signIn(email, password);
-      
+
+      // Guardamos o borramos las credenciales según la opción "Recordar".
+      if (success) {
+        if (_rememberMe) {
+          await CredentialStore.save(email, password);
+        } else {
+          await CredentialStore.clear();
+        }
+        return;
+      }
+
       // If sign in fails, the error will be in the state, so we listen to it in `build`.
       // The routing handles success navigation implicitly via authStateProvider listener in main.dart
-      if (!success && mounted) {
+      if (mounted) {
         // Fallback or explicit triggering of snackbar could be done here as well, 
         // but it's cleaner to listen to state changes if preferred.
         // We will do it explicitly to guarantee UI focus:
@@ -153,7 +183,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 8),
+
+                  // Remember credentials (opcional)
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _rememberMe,
+                        onChanged: (value) {
+                          setState(() => _rememberMe = value ?? false);
+                        },
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setState(() => _rememberMe = !_rememberMe),
+                          child: const Text(
+                            'Recordar mis datos en este dispositivo',
+                            style: TextStyle(color: Colors.black87),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
 
                   // Submit Button
                   SizedBox(

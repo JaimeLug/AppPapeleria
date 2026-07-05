@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:app_papeleria/config/theme/app_theme.dart';
 import 'package:app_papeleria/features/settings/presentation/providers/settings_provider.dart';
 import 'package:app_papeleria/features/settings/presentation/widgets/category_editor_dialog.dart';
 import 'package:app_papeleria/features/settings/presentation/widgets/customer_manager_dialog.dart';
-import 'package:app_papeleria/features/auth/presentation/providers/auth_providers.dart';
 import 'package:app_papeleria/features/settings/presentation/pages/brand_settings_page.dart';
+import 'package:app_papeleria/features/auth/presentation/logout_helper.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
   const SettingsPage({super.key});
@@ -295,7 +294,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
                         foregroundColor: Colors.redAccent,
                         side: const BorderSide(color: Colors.redAccent),
                       ),
-                      onPressed: () => _showLogoutConfirm(context),
+                      onPressed: () => confirmSaveAndSignOut(context, ref),
                       child: const Text('Cerrar Sesión'),
                     ),
                   ),
@@ -436,32 +435,6 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
     );
   }
 
-  void _showLogoutConfirm(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Cerrar Sesión'),
-        content: const Text('¿Estás seguro de que deseas cerrar sesión? Tendrás que ingresar tus credenciales nuevamente para acceder.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('CANCELAR'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              Navigator.pop(ctx);
-              ref.read(loginControllerProvider.notifier).signOut();
-            },
-            child: const Text('CERRAR SESIÓN'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _PinDialogBody extends StatefulWidget {

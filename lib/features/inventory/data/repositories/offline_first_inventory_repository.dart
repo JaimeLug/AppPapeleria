@@ -99,7 +99,17 @@ class OfflineFirstInventoryRepository implements InventoryRepository {
       await _itemBox.put(id, updated);
       _syncManager.syncPendingData();
     }
-    await _remoteRepo.deleteItemLogically(id);
+
+    try {
+      await _remoteRepo.deleteItemLogically(id);
+      final latest = _itemBox.get(id);
+      if (latest != null) {
+        await _itemBox.put(id, latest.copyWith(isSynced: true));
+      }
+    } catch (e) {
+      debugPrint('Delete sync failed, will retry later: $e');
+      _syncManager.syncPendingData();
+    }
   }
 
   @override

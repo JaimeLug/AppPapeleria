@@ -5,6 +5,7 @@ import '../models/expense_model.dart';
 import '../models/income_model.dart';
 import 'supabase_finance_repository.dart';
 import '../../../../core/services/sync_manager.dart';
+import '../../../../core/services/pending_delete_queue.dart';
 
 class OfflineFirstFinanceRepository implements FinanceRepository {
   final SupabaseFinanceRepository _remoteRepo;
@@ -67,8 +68,9 @@ class OfflineFirstFinanceRepository implements FinanceRepository {
 
   @override
   Future<void> deleteExpense(String id) async {
+    await PendingDeleteQueue.add('expense', id);
     await _expenseBox.delete(id);
-    _remoteRepo.deleteExpense(id);
+    _syncManager.syncPendingData();
   }
 
   @override
@@ -109,7 +111,8 @@ class OfflineFirstFinanceRepository implements FinanceRepository {
 
   @override
   Future<void> deleteIncome(String id) async {
+    await PendingDeleteQueue.add('income', id);
     await _incomeBox.delete(id);
-    _remoteRepo.deleteIncome(id);
+    _syncManager.syncPendingData();
   }
 }

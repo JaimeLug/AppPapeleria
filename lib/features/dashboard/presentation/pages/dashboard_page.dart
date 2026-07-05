@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../config/theme/app_theme.dart';
 import '../../../inventory/presentation/pages/product_management_page.dart';
 import '../../../inventory/presentation/pages/inventory_screen.dart';
 import '../../../sales/presentation/pages/sales_page.dart';
@@ -15,6 +14,7 @@ import '../../../finance/presentation/pages/expenses_page.dart';
 import '../../../sales/presentation/providers/orders_provider.dart';
 import 'package:app_papeleria/features/settings/presentation/pages/settings_page.dart';
 import 'package:app_papeleria/features/settings/presentation/providers/settings_provider.dart';
+import 'package:app_papeleria/features/auth/presentation/logout_helper.dart';
 import '../../domain/models/dashboard_widget_config.dart';
 // Needed for type checking/stack wrapping if explicit
 import '../utils/dashboard_constants.dart';
@@ -184,6 +184,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           _SidebarItem(icon: Icons.attach_money, label: 'Finanzas', isSelected: _selectedIndex == 6, onTap: () => _navigateTo(6)),
           const Spacer(),
           _SidebarItem(icon: Icons.settings_outlined, label: 'Configuración', isSelected: _selectedIndex == 7, onTap: () => _navigateTo(7)),
+          _SidebarItem(icon: Icons.logout, label: 'Cerrar Sesión', isSelected: false, onTap: () => confirmSaveAndSignOut(context, ref)),
           const SizedBox(height: 24),
         ],
       ),

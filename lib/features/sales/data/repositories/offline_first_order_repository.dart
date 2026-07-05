@@ -6,6 +6,7 @@ import '../../domain/repositories/order_repository.dart';
 import '../models/order_model.dart';
 import 'supabase_order_repository.dart';
 import '../../../../core/services/sync_manager.dart';
+import '../../../../core/services/pending_delete_queue.dart';
 
 class OfflineFirstOrderRepository implements OrderRepository {
   final SupabaseOrderRepository _remoteRepo;
@@ -58,8 +59,9 @@ class OfflineFirstOrderRepository implements OrderRepository {
 
   @override
   Future<Either<Failure, void>> deleteOrder(String id) async {
+    await PendingDeleteQueue.add('order', id);
     await _box.delete(id);
-    _remoteRepo.deleteOrder(id);
+    _syncManager.syncPendingData();
     return const Right(null);
   }
 

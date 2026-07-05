@@ -5,6 +5,7 @@ import '../../domain/repositories/customer_repository.dart';
 import '../models/customer_model.dart';
 import 'supabase_customer_repository.dart';
 import '../../../../core/services/sync_manager.dart';
+import '../../../../core/services/pending_delete_queue.dart';
 
 class OfflineFirstCustomerRepository implements CustomerRepository {
   final SupabaseCustomerRepository _remoteRepo;
@@ -78,18 +79,10 @@ class OfflineFirstCustomerRepository implements CustomerRepository {
   Future<void> deleteCustomer(String id) async {
     final local = _box.get(id);
     if (local != null) {
-      // In Hive we could remove it or mark as isDeleted if we had that field. 
-      // Based on Phase 4 rules, we use Soft Delete.
-      // CustomerModel doesn't have isDeleted in Hive yet? Wait.
-      // I'll add isDeleted to CustomerModel just in case.
-      await _box.delete(id); // For simplicity in local Hive we can delete or add isDeleted.
+      await PendingDeleteQueue.add('customer', id);
+      await _box.delete(id);
     }
-    
-    // Remote Soft Delete
-    _remoteRepo.deleteCustomer(id).then((_) {
-      // Success
-    }).catchError((e) {
-      // Will be retried by SyncManager if we kept a 'deleted' record.
-    });
+
+    _syncManager.syncPendingData();
   }
 }

@@ -6,6 +6,7 @@ import '../../domain/repositories/product_repository.dart';
 import '../models/product_model.dart';
 import 'supabase_product_repository.dart';
 import '../../../../core/services/sync_manager.dart';
+import '../../../../core/services/pending_delete_queue.dart';
 
 class OfflineFirstProductRepository implements ProductRepository {
   final SupabaseProductRepository _remoteRepo;
@@ -69,8 +70,9 @@ class OfflineFirstProductRepository implements ProductRepository {
 
   @override
   Future<Either<Failure, void>> deleteProduct(String id) async {
+    await PendingDeleteQueue.add('product', id);
     await _box.delete(id);
-    _remoteRepo.deleteProduct(id); // Fire and forget, SyncManager handles retry if we had a tombstone
+    _syncManager.syncPendingData();
     return const Right(null);
   }
 }

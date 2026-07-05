@@ -129,6 +129,27 @@ class SupabaseInventoryRepository {
     }
   }
 
+  /// Sube (o actualiza) el registro de un movimiento SIN recalcular el stock.
+  /// Se usa en el "guardado completo" para no duplicar ajustes de inventario:
+  /// el stock ya viaja de forma autoritativa en `inventory_items.current_stock`.
+  Future<void> upsertMovement(StockMovementModel movement) async {
+    try {
+      await _supabase.from('stock_movements').upsert({
+        'id': movement.id,
+        'item_id': movement.itemId,
+        'movement_type': movement.movementType,
+        'quantity': movement.quantity,
+        'reason': movement.reason,
+        'date': movement.date.toUtc().toIso8601String(),
+        'is_item_deleted': movement.isItemDeleted,
+      });
+    } on PostgrestException catch (e) {
+      throw ServerException('Error de BD al subir movimiento: ${e.message}');
+    } catch (e) {
+      throw ServerException('Error inesperado al subir movimiento: $e');
+    }
+  }
+
   // --- Mappers ---
 
   InventoryItemModel _mapToItem(Map<String, dynamic> json) {

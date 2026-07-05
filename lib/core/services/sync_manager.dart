@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 import '../providers/remote_repositories_providers.dart';
+import 'pending_delete_queue.dart';
 import '../../features/sales/data/repositories/supabase_customer_repository.dart';
 import '../../features/inventory/data/repositories/supabase_product_repository.dart';
 import '../../features/sales/data/repositories/supabase_order_repository.dart';
@@ -49,6 +50,9 @@ class SyncManager {
     _connectivitySubscription?.cancel();
   }
 
+  /// Sube a la nube solo lo que está pendiente (`isSynced == false`).
+  /// Es el guardado en tiempo real que se dispara al crear/editar y al
+  /// recuperar conectividad.
   Future<void> syncPendingData() async {
     if (_isSyncing) return;
     _isSyncing = true;
@@ -61,6 +65,7 @@ class SyncManager {
       await _syncMovements();
       await _syncExpenses();
       await _syncIncomes();
+      await _syncPendingDeletes();
     } catch (e) {
       debugPrint('Error durante la sincronización: $e');
     } finally {
@@ -68,9 +73,32 @@ class SyncManager {
     }
   }
 
-  Future<void> _syncCustomers() async {
+  /// Guardado completo: empuja TODO lo local a la nube, ignorando el flag
+  /// `isSynced`. Se usa al cerrar sesión como red de seguridad y para
+  /// re-subir datos cuyo flag apunta a una base anterior.
+  Future<void> forceSyncAll() async {
+    if (_isSyncing) return;
+    _isSyncing = true;
+
+    try {
+      await _syncCustomers(force: true);
+      await _syncProducts(force: true);
+      await _syncItems(force: true);
+      await _syncOrders(force: true);
+      await _syncMovements(force: true);
+      await _syncExpenses(force: true);
+      await _syncIncomes(force: true);
+      await _syncPendingDeletes();
+    } catch (e) {
+      debugPrint('Error durante el guardado completo: $e');
+    } finally {
+      _isSyncing = false;
+    }
+  }
+
+  Future<void> _syncCustomers({bool force = false}) async {
     final box = Hive.box<CustomerModel>('customers');
-    final pending = box.values.where((c) => !c.isSynced).toList();
+    final pending = box.values.where((c) => force || !c.isSynced).toList();
     for (var customer in pending) {
       try {
         await _remoteCustomerRepo.saveCustomer(customer);
@@ -82,9 +110,9 @@ class SyncManager {
     }
   }
 
-  Future<void> _syncProducts() async {
+  Future<void> _syncProducts({bool force = false}) async {
     final box = Hive.box<ProductModel>('products');
-    final pending = box.values.where((p) => !p.isSynced).toList();
+    final pending = box.values.where((p) => force || !p.isSynced).toList();
     for (var product in pending) {
       final result = await _remoteProductRepo.addProduct(product);
       result.fold(
@@ -97,12 +125,16 @@ class SyncManager {
     }
   }
 
-  Future<void> _syncItems() async {
+  Future<void> _syncItems({bool force = false}) async {
     final box = Hive.box<InventoryItemModel>('inventoryItems');
-    final pending = box.values.where((i) => !i.isSynced).toList();
+    final pending = box.values.where((i) => force || !i.isSynced).toList();
     for (var item in pending) {
       try {
-        await _remoteInventoryRepo.createItem(item);
+        if (item.isDeleted) {
+          await _remoteInventoryRepo.deleteItemLogically(item.id);
+        } else {
+          await _remoteInventoryRepo.createItem(item);
+        }
         final synced = item.copyWith(isSynced: true);
         await box.put(item.id, synced);
       } catch (e) {
@@ -111,9 +143,9 @@ class SyncManager {
     }
   }
 
-  Future<void> _syncOrders() async {
+  Future<void> _syncOrders({bool force = false}) async {
     final box = Hive.box<OrderModel>('orders');
-    final pending = box.values.where((o) => !o.isSynced).toList();
+    final pending = box.values.where((o) => force || !o.isSynced).toList();
     for (var order in pending) {
       final result = await _remoteOrderRepo.addOrder(order);
       result.fold(
@@ -126,18 +158,24 @@ class SyncManager {
     }
   }
 
-  Future<void> _syncMovements() async {
+  Future<void> _syncMovements({bool force = false}) async {
     final box = Hive.box<StockMovementModel>('stockMovements');
-    final pending = box.values.where((m) => !m.isSynced).toList();
+    final pending = box.values.where((m) => force || !m.isSynced).toList();
     for (var movement in pending) {
       try {
-        await _remoteInventoryRepo.adjustStock(
-          movement.itemId,
-          movement.quantity,
-          movement.movementType,
-          movement.reason,
-          movementId: movement.id,
-        );
+        if (force) {
+          // Guardado completo: solo sube el registro, sin re-ajustar el stock
+          // (el stock ya viaja autoritativo en inventory_items).
+          await _remoteInventoryRepo.upsertMovement(movement);
+        } else {
+          await _remoteInventoryRepo.adjustStock(
+            movement.itemId,
+            movement.quantity,
+            movement.movementType,
+            movement.reason,
+            movementId: movement.id,
+          );
+        }
         final synced = movement.copyWith(isSynced: true);
         await box.put(movement.id, synced);
       } catch (e) {
@@ -146,9 +184,9 @@ class SyncManager {
     }
   }
 
-  Future<void> _syncExpenses() async {
+  Future<void> _syncExpenses({bool force = false}) async {
     final box = Hive.box<ExpenseModel>('expenses');
-    final pending = box.values.where((e) => !e.isSynced).toList();
+    final pending = box.values.where((e) => force || !e.isSynced).toList();
     for (var expense in pending) {
       try {
         await _remoteFinanceRepo.addExpense(expense);
@@ -160,9 +198,9 @@ class SyncManager {
     }
   }
 
-  Future<void> _syncIncomes() async {
+  Future<void> _syncIncomes({bool force = false}) async {
     final box = Hive.box<IncomeModel>('incomes');
-    final pending = box.values.where((i) => !i.isSynced).toList();
+    final pending = box.values.where((i) => force || !i.isSynced).toList();
     for (var income in pending) {
       try {
         await _remoteFinanceRepo.addIncome(income);
@@ -170,6 +208,88 @@ class SyncManager {
         await box.put(income.id, synced);
       } catch (e) {
         debugPrint('Error sincronizando ingreso ${income.id}: $e');
+      }
+    }
+  }
+
+  /// Cuenta los registros locales que aún no se han subido a la nube
+  /// (más los borrados pendientes). Se usa para decidir si mostrar el
+  /// diálogo de reconciliación al iniciar sesión.
+  int countPendingLocalData() {
+    int count = 0;
+    count += Hive.box<CustomerModel>('customers').values.where((c) => !c.isSynced).length;
+    count += Hive.box<ProductModel>('products').values.where((p) => !p.isSynced).length;
+    count += Hive.box<InventoryItemModel>('inventoryItems').values.where((i) => !i.isSynced).length;
+    count += Hive.box<OrderModel>('orders').values.where((o) => !o.isSynced).length;
+    count += Hive.box<StockMovementModel>('stockMovements').values.where((m) => !m.isSynced).length;
+    count += Hive.box<ExpenseModel>('expenses').values.where((e) => !e.isSynced).length;
+    count += Hive.box<IncomeModel>('incomes').values.where((i) => !i.isSynced).length;
+    count += PendingDeleteQueue.count;
+    return count;
+  }
+
+  bool get hasPendingLocalData => countPendingLocalData() > 0;
+
+  /// Descarta los registros locales sin sincronizar (y los borrados
+  /// pendientes). Lo ya sincronizado —caché de la nube— se conserva.
+  Future<void> discardPendingLocalData() async {
+    await _deleteUnsynced<CustomerModel>('customers', (v) => v.isSynced);
+    await _deleteUnsynced<ProductModel>('products', (v) => v.isSynced);
+    await _deleteUnsynced<InventoryItemModel>('inventoryItems', (v) => v.isSynced);
+    await _deleteUnsynced<OrderModel>('orders', (v) => v.isSynced);
+    await _deleteUnsynced<StockMovementModel>('stockMovements', (v) => v.isSynced);
+    await _deleteUnsynced<ExpenseModel>('expenses', (v) => v.isSynced);
+    await _deleteUnsynced<IncomeModel>('incomes', (v) => v.isSynced);
+    await PendingDeleteQueue.clear();
+  }
+
+  Future<void> _deleteUnsynced<T>(String boxName, bool Function(T) isSynced) async {
+    final box = Hive.box<T>(boxName);
+    final keysToDelete =
+        box.keys.where((k) => !isSynced(box.get(k) as T)).toList();
+    await box.deleteAll(keysToDelete);
+  }
+
+  Future<void> _syncPendingDeletes() async {
+    final pendingDeletes = PendingDeleteQueue.getAll();
+
+    for (final pendingDelete in pendingDeletes) {
+      try {
+        switch (pendingDelete.type) {
+          case 'customer':
+            await _remoteCustomerRepo.deleteCustomer(pendingDelete.id);
+            break;
+          case 'product':
+            final result =
+                await _remoteProductRepo.deleteProduct(pendingDelete.id);
+            result.fold(
+              (failure) => throw Exception(failure.message),
+              (_) => null,
+            );
+            break;
+          case 'order':
+            final result = await _remoteOrderRepo.deleteOrder(pendingDelete.id);
+            result.fold(
+              (failure) => throw Exception(failure.message),
+              (_) => null,
+            );
+            break;
+          case 'expense':
+            await _remoteFinanceRepo.deleteExpense(pendingDelete.id);
+            break;
+          case 'income':
+            await _remoteFinanceRepo.deleteIncome(pendingDelete.id);
+            break;
+          default:
+            debugPrint('Tipo de borrado pendiente desconocido: ${pendingDelete.type}');
+            continue;
+        }
+
+        await PendingDeleteQueue.remove(pendingDelete.type, pendingDelete.id);
+      } catch (e) {
+        debugPrint(
+          'Error sincronizando borrado ${pendingDelete.type}/${pendingDelete.id}: $e',
+        );
       }
     }
   }
@@ -187,6 +307,7 @@ final syncManagerProvider = Provider<SyncManager>((ref) {
   
   // Self-initialize the manager
   manager.init();
-  
+  ref.onDispose(manager.dispose);
+
   return manager;
 });
