@@ -23,6 +23,7 @@ import 'features/auth/presentation/providers/auth_providers.dart';
 import 'features/auth/presentation/pages/login_screen.dart';
 import 'features/auth/presentation/pages/session_gate.dart';
 import 'core/services/sync_manager.dart';
+import 'core/services/window_branding.dart';
 
 /// Navigator global para poder mostrar diálogos desde el interceptor de cierre.
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -133,7 +134,11 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
   @override
   void initState() {
     super.initState();
-    if (isDesktop) windowManager.addListener(this);
+    if (isDesktop) {
+      windowManager.addListener(this);
+      // Ícono inicial de la ventana según el logo de marca actual.
+      applyWindowIcon(ref.read(currentBrandConfigProvider).logoBase64);
+    }
   }
 
   @override
@@ -217,6 +222,14 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
 
   @override
   Widget build(BuildContext context) {
+    // Actualiza el ícono de la ventana en vivo cuando cambia el logo de marca.
+    if (isDesktop) {
+      ref.listen(
+        currentBrandConfigProvider.select((c) => c.logoBase64),
+        (_, next) => applyWindowIcon(next),
+      );
+    }
+
     final isSupabaseConfigured = widget.isSupabaseConfigured;
     final initializationError = widget.initializationError;
 
