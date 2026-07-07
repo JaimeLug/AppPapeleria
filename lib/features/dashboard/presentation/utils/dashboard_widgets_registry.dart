@@ -8,7 +8,7 @@ import '../widgets/pending_deliveries_widget.dart';
 import '../widgets/next_deliveries_widget.dart';
 import '../widgets/top_products_widget.dart';
 import '../widgets/trend_chart_widget.dart';
-import '../widgets/corateca_clock_widget.dart';
+import '../widgets/clock_widget.dart';
 import '../widgets/quick_note_widget.dart';
 
 class DashboardWidgetRegistry {
@@ -103,7 +103,7 @@ class DashboardWidgetRegistry {
 
     register(
       DashboardWidgetIds.clock,
-      (context, isDragging, onRemove, onResize, onResizeHeight) => CoratecaClockWidget(isDragging: isDragging, onRemove: onRemove, onResize: onResize, onResizeHeight: onResizeHeight),
+      (context, isDragging, onRemove, onResize, onResizeHeight) => ClockWidget(isDragging: isDragging, onRemove: onRemove, onResize: onResize, onResizeHeight: onResizeHeight),
       const WidgetMetadata(
         displayName: 'Reloj',
         icon: Icons.access_time,

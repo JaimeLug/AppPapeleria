@@ -5,19 +5,19 @@ import 'package:intl/intl.dart';
 import '../utils/dashboard_constants.dart';
 import 'dashboard_widget_wrapper.dart';
 
-class CoratecaClockWidget extends StatefulWidget {
+class ClockWidget extends StatefulWidget {
   final bool isDragging;
   final VoidCallback? onRemove;
   final VoidCallback? onResize;
   final VoidCallback? onResizeHeight;
     
-  const CoratecaClockWidget({super.key, this.isDragging = false, this.onRemove, this.onResize, this.onResizeHeight});
+  const ClockWidget({super.key, this.isDragging = false, this.onRemove, this.onResize, this.onResizeHeight});
 
   @override
-  State<CoratecaClockWidget> createState() => _CoratecaClockWidgetState();
+  State<ClockWidget> createState() => _ClockWidgetState();
 }
 
-class _CoratecaClockWidgetState extends State<CoratecaClockWidget> {
+class _ClockWidgetState extends State<ClockWidget> {
   late Stream<DateTime> _timerStream;
 
   @override
