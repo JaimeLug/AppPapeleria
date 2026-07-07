@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,8 +36,22 @@ bool get isDesktop =>
         defaultTargetPlatform == TargetPlatform.linux ||
         defaultTargetPlatform == TargetPlatform.macOS);
 
-void main() async {
+void main() {
+  // Captura global de errores asíncronos no manejados.
+  runZonedGuarded(_bootstrap, (error, stack) {
+    debugPrint('Error no capturado en la app: $error');
+    debugPrint('$stack');
+  });
+}
+
+Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Errores del framework de Flutter (build, layout, gestos...).
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint('FlutterError capturado: ${details.exceptionAsString()}');
+  };
 
   // En escritorio, interceptamos el botón de cerrar la ventana para guardar
   // el trabajo antes de salir.
