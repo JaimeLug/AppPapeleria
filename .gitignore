@@ -43,3 +43,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Instaladores y artefactos de build (no versionar binarios pesados)
+/Output/
+*.exe
+
+# Salidas temporales de análisis
+analysis_output.txt
+analyze_output.txt
+analyzer_output.txt
+analyzer_utf8.txt
