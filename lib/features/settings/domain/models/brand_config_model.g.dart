@@ -22,13 +22,15 @@ class BrandConfigModelAdapter extends TypeAdapter<BrandConfigModel> {
       accentColorHex: fields[2] as int,
       updatedAt: fields[3] as DateTime,
       logoBase64: fields[4] as String?,
+      backgroundColorHex: fields[5] as int?,
+      surfaceColorHex: fields[6] as int?,
     );
   }
 
   @override
   void write(BinaryWriter writer, BrandConfigModel obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.appName)
       ..writeByte(1)
@@ -38,7 +40,11 @@ class BrandConfigModelAdapter extends TypeAdapter<BrandConfigModel> {
       ..writeByte(3)
       ..write(obj.updatedAt)
       ..writeByte(4)
-      ..write(obj.logoBase64);
+      ..write(obj.logoBase64)
+      ..writeByte(5)
+      ..write(obj.backgroundColorHex)
+      ..writeByte(6)
+      ..write(obj.surfaceColorHex);
   }
 
   @override

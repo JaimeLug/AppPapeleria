@@ -41,6 +41,7 @@ dependencies:
   flutter_colorpicker: ^1.1.0
   window_manager: ^0.5.2
   image: ^4.5.4
+  palette_generator: ^0.3.3+7
 
 dev_dependencies:
   flutter_test:

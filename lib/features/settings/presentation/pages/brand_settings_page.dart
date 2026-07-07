@@ -1,11 +1,15 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:palette_generator/palette_generator.dart';
 import '../providers/theme_provider.dart';
 import '../providers/settings_provider.dart';
 import '../../domain/models/brand_config_model.dart';
+import '../../../../config/theme/app_theme.dart';
 
 class BrandSettingsPage extends ConsumerStatefulWidget {
   const BrandSettingsPage({super.key});
@@ -19,6 +23,8 @@ class _BrandSettingsPageState extends ConsumerState<BrandSettingsPage> {
   late TextEditingController _nameController;
   late Color _primaryColor;
   late Color _accentColor;
+  late Color _backgroundColor;
+  late Color _surfaceColor;
   String? _logoBase64;
 
   // Límite del tamaño de imagen para no inflar la base de datos.
@@ -38,6 +44,12 @@ class _BrandSettingsPageState extends ConsumerState<BrandSettingsPage> {
     _nameController = TextEditingController(text: config.appName);
     _primaryColor = Color(config.primaryColorHex);
     _accentColor = Color(config.accentColorHex);
+    _backgroundColor = config.backgroundColorHex != null
+        ? Color(config.backgroundColorHex!)
+        : AppTheme.backgroundColor;
+    _surfaceColor = config.surfaceColorHex != null
+        ? Color(config.surfaceColorHex!)
+        : AppTheme.cardColor;
     _logoBase64 = config.logoBase64;
 
     final settings = ref.read(settingsProvider);
@@ -92,6 +104,35 @@ class _BrandSettingsPageState extends ConsumerState<BrandSettingsPage> {
                   (color) => setState(() => _accentColor = color),
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                _buildColorPickerColumn(
+                  'Color de Fondo',
+                  _backgroundColor,
+                  (color) => setState(() => _backgroundColor = color),
+                ),
+                const SizedBox(width: 32),
+                _buildColorPickerColumn(
+                  'Color de Tarjetas',
+                  _surfaceColor,
+                  (color) => setState(() => _surfaceColor = color),
+                ),
+              ],
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'Fondo y tarjetas aplican al modo claro.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: _suggestColorsFromLogo,
+              icon: const Icon(Icons.auto_awesome),
+              label: const Text('Sugerir colores desde el logo'),
             ),
             const SizedBox(height: 48),
 
@@ -208,6 +249,120 @@ class _BrandSettingsPageState extends ConsumerState<BrandSettingsPage> {
     setState(() => _logoBase64 = base64Encode(bytes));
   }
 
+  /// Extrae los colores dominantes del logo (o del logo por defecto) y ofrece
+  /// aplicarlos como primario/acento.
+  Future<void> _suggestColorsFromLogo() async {
+    final Uint8List bytes;
+    if (_logoBase64 != null && _logoBase64!.isNotEmpty) {
+      bytes = base64Decode(_logoBase64!);
+    } else {
+      final data = await rootBundle.load('assets/images/logo.png');
+      bytes = data.buffer.asUint8List();
+    }
+
+    final palette = await PaletteGenerator.fromImageProvider(
+      MemoryImage(bytes),
+      maximumColorCount: 16,
+    );
+
+    final suggestedPrimary = (palette.vibrantColor ??
+            palette.dominantColor ??
+            palette.darkVibrantColor)
+        ?.color;
+    final suggestedAccent = (palette.lightVibrantColor ??
+            palette.mutedColor ??
+            palette.darkMutedColor ??
+            palette.dominantColor)
+        ?.color;
+
+    if (!mounted) return;
+    if (suggestedPrimary == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudieron extraer colores del logo.')),
+      );
+      return;
+    }
+
+    final allColors = palette.colors.toList();
+
+    final apply = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        title: const Text('Colores de tu logo'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Colores encontrados:'),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: allColors
+                  .map((c) => Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: c,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.black12),
+                        ),
+                      ))
+                  .toList(),
+            ),
+            const SizedBox(height: 20),
+            const Text('Sugerencia:', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _suggestionSwatch('Primario', suggestedPrimary),
+                const SizedBox(width: 16),
+                if (suggestedAccent != null)
+                  _suggestionSwatch('Acento', suggestedAccent),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, false),
+            child: const Text('CANCELAR'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dctx, true),
+            child: const Text('USAR ESTOS'),
+          ),
+        ],
+      ),
+    );
+
+    if (apply == true) {
+      setState(() {
+        _primaryColor = suggestedPrimary;
+        if (suggestedAccent != null) _accentColor = suggestedAccent;
+      });
+    }
+  }
+
+  Widget _suggestionSwatch(String label, Color color) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        const SizedBox(height: 4),
+        Container(
+          width: 56,
+          height: 40,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.black12),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildColorPickerColumn(String title, Color currentColor, ValueChanged<Color> onColorChanged) {
     return Expanded(
       child: Column(
@@ -262,6 +417,8 @@ class _BrandSettingsPageState extends ConsumerState<BrandSettingsPage> {
       accentColorHex: _accentColor.toARGB32(),
       updatedAt: DateTime.now(),
       logoBase64: _logoBase64,
+      backgroundColorHex: _backgroundColor.toARGB32(),
+      surfaceColorHex: _surfaceColor.toARGB32(),
     );
     await repo.updateConfig(newConfig);
 

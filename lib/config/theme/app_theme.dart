@@ -10,16 +10,20 @@ class AppTheme {
   static ThemeData lightTheme({
     Color primaryColor = const Color(0xFF8E24AA),
     Color secondaryColor = const Color(0xFFBA68C8),
+    Color? background,
+    Color? surface,
   }) {
+    final bg = background ?? backgroundColor;
+    final card = surface ?? cardColor;
     return ThemeData(
       useMaterial3: true,
-      scaffoldBackgroundColor: backgroundColor,
+      scaffoldBackgroundColor: bg,
       primaryColor: primaryColor,
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,
         primary: primaryColor,
         secondary: secondaryColor,
-        surface: backgroundColor,
+        surface: bg,
       ),
       textTheme: TextTheme(
         displayLarge: GoogleFonts.quicksand(
@@ -33,16 +37,16 @@ class AppTheme {
         bodyLarge: GoogleFonts.quicksand(color: bodyColor, fontSize: 16),
         bodyMedium: GoogleFonts.quicksand(color: bodyColor, fontSize: 14),
       ),
-      cardTheme: const CardThemeData(
-        color: cardColor,
+      cardTheme: CardThemeData(
+        color: card,
         elevation: 2,
         shadowColor: Colors.black, // simplified to remove withOpacity const issue if any
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(24)),
         ),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: backgroundColor,
+        backgroundColor: bg,
         elevation: 0,
         iconTheme: const IconThemeData(color: titleColor),
         titleTextStyle: GoogleFonts.quicksand(
@@ -53,7 +57,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: cardColor,
+        fillColor: card,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide.none,

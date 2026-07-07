@@ -313,6 +313,12 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
       theme: AppTheme.lightTheme(
         primaryColor: Color(brandConfig.primaryColorHex),
         secondaryColor: Color(brandConfig.accentColorHex),
+        background: brandConfig.backgroundColorHex != null
+            ? Color(brandConfig.backgroundColorHex!)
+            : null,
+        surface: brandConfig.surfaceColorHex != null
+            ? Color(brandConfig.surfaceColorHex!)
+            : null,
       ),
       darkTheme: AppTheme.darkTheme(
         primaryColor: Color(brandConfig.primaryColorHex),
