@@ -37,14 +37,25 @@ class OfflineFirstCustomerRepository implements CustomerRepository {
   Future<void> _fetchRemoteAndSync() async {
     try {
       final remoteData = await _remoteRepo.getAllCustomers();
+      final remoteIds = <String>{};
       for (var remoteCustomer in remoteData) {
+        remoteIds.add(remoteCustomer.id);
         final localCustomer = _box.get(remoteCustomer.id);
-        
+
         // Only update if remote is newer or not exists locally
-        if (localCustomer == null || 
+        if (localCustomer == null ||
            (remoteCustomer is CustomerModel && remoteCustomer.updatedAt.isAfter(localCustomer.updatedAt))) {
           await _box.put(remoteCustomer.id, remoteCustomer as CustomerModel);
         }
+      }
+      // Poda: elimina lo que ya fue sincronizado pero ya no existe en remoto
+      // (borrado desde otro dispositivo). No toca lo creado local sin subir.
+      final toRemove = _box.values
+          .where((c) => c.isSynced && !remoteIds.contains(c.id))
+          .map((c) => c.id)
+          .toList();
+      for (final id in toRemove) {
+        await _box.delete(id);
       }
     } catch (e) {
       debugPrint('Error en fetch remoto de clientes: $e');

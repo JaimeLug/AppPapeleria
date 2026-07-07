@@ -48,11 +48,21 @@ class OfflineFirstFinanceRepository implements FinanceRepository {
   Future<void> _fetchRemoteExpenses() async {
     try {
       final remote = await _remoteRepo.getExpenses();
+      final remoteIds = <String>{};
       for (var expense in remote) {
+        remoteIds.add(expense.id);
         final local = _expenseBox.get(expense.id);
         if (local == null || expense.updatedAt.isAfter(local.updatedAt)) {
           await _expenseBox.put(expense.id, expense);
         }
+      }
+      // Poda: elimina lo sincronizado que ya no existe en remoto (borrado en otro dispositivo).
+      final toRemove = _expenseBox.values
+          .where((e) => e.isSynced && !remoteIds.contains(e.id))
+          .map((e) => e.id)
+          .toList();
+      for (final id in toRemove) {
+        await _expenseBox.delete(id);
       }
     } catch (e) {
       debugPrint('Error en fetch remoto de gastos: $e');
@@ -83,11 +93,21 @@ class OfflineFirstFinanceRepository implements FinanceRepository {
   Future<void> _fetchRemoteIncomes() async {
     try {
       final remote = await _remoteRepo.getIncomes();
+      final remoteIds = <String>{};
       for (var income in remote) {
+        remoteIds.add(income.id);
         final local = _incomeBox.get(income.id);
         if (local == null || income.updatedAt.isAfter(local.updatedAt)) {
           await _incomeBox.put(income.id, income);
         }
+      }
+      // Poda: elimina lo sincronizado que ya no existe en remoto (borrado en otro dispositivo).
+      final toRemove = _incomeBox.values
+          .where((i) => i.isSynced && !remoteIds.contains(i.id))
+          .map((i) => i.id)
+          .toList();
+      for (final id in toRemove) {
+        await _incomeBox.delete(id);
       }
     } catch (e) {
       debugPrint('Error en fetch remoto de ingresos: $e');

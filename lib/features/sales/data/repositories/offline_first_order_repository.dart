@@ -36,11 +36,21 @@ class OfflineFirstOrderRepository implements OrderRepository {
     result.fold(
       (l) => null,
       (remoteOrders) async {
+        final remoteIds = <String>{};
         for (var remote in remoteOrders) {
+          remoteIds.add(remote.id);
           final local = _box.get(remote.id);
           if (local == null || (remote is OrderModel && remote.updatedAt.isAfter(local.updatedAt))) {
             await _box.put(remote.id, remote as OrderModel);
           }
+        }
+        // Poda: elimina lo sincronizado que ya no existe en remoto (borrado en otro dispositivo).
+        final toRemove = _box.values
+            .where((o) => o.isSynced && !remoteIds.contains(o.id))
+            .map((o) => o.id)
+            .toList();
+        for (final id in toRemove) {
+          await _box.delete(id);
         }
       },
     );

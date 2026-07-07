@@ -61,11 +61,22 @@ class OfflineFirstInventoryRepository implements InventoryRepository {
   Future<void> _fetchRemoteItems() async {
     try {
       final remote = await _remoteRepo.getAllItems();
+      final remoteIds = <String>{};
       for (var item in remote) {
+        remoteIds.add(item.id);
         final local = _itemBox.get(item.id);
         if (local == null || item.updatedAt.isAfter(local.updatedAt)) {
           await _itemBox.put(item.id, item);
         }
+      }
+      // Poda: elimina lo sincronizado que ya no existe activo en remoto
+      // (borrado en otro dispositivo). No toca lo creado local sin subir.
+      final toRemove = _itemBox.values
+          .where((i) => i.isSynced && !remoteIds.contains(i.id))
+          .map((i) => i.id)
+          .toList();
+      for (final id in toRemove) {
+        await _itemBox.delete(id);
       }
     } catch (e) {
       debugPrint('Error en fetch remoto de ítems: $e');

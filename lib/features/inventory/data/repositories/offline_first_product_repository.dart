@@ -36,11 +36,21 @@ class OfflineFirstProductRepository implements ProductRepository {
     result.fold(
       (l) => null,
       (remoteProducts) async {
+        final remoteIds = <String>{};
         for (var remote in remoteProducts) {
+          remoteIds.add(remote.id);
           final local = _box.get(remote.id);
           if (local == null || (remote is ProductModel && remote.updatedAt.isAfter(local.updatedAt))) {
             await _box.put(remote.id, remote as ProductModel);
           }
+        }
+        // Poda: elimina lo sincronizado que ya no existe en remoto (borrado en otro dispositivo).
+        final toRemove = _box.values
+            .where((p) => p.isSynced && !remoteIds.contains(p.id))
+            .map((p) => p.id)
+            .toList();
+        for (final id in toRemove) {
+          await _box.delete(id);
         }
       },
     );
