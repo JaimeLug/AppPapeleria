@@ -47,6 +47,8 @@ app.*.map.json
 # Instaladores y artefactos de build (no versionar binarios pesados)
 /Output/
 *.exe
+# Scripts de Inno Setup de la marca antigua
+corateca*.iss
 
 # Salidas temporales de análisis
 analysis_output.txt
