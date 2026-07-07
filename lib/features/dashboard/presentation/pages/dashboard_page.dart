@@ -15,6 +15,7 @@ import '../../../sales/presentation/providers/orders_provider.dart';
 import 'package:app_papeleria/features/settings/presentation/pages/settings_page.dart';
 import 'package:app_papeleria/features/settings/presentation/providers/settings_provider.dart';
 import 'package:app_papeleria/features/settings/presentation/widgets/brand_logo.dart';
+import 'package:app_papeleria/features/settings/presentation/providers/theme_provider.dart';
 import 'package:app_papeleria/features/auth/presentation/logout_helper.dart';
 import '../../domain/models/dashboard_widget_config.dart';
 // Needed for type checking/stack wrapping if explicit
@@ -161,14 +162,17 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                 const BrandLogo(height: 40),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    'Papelería Pro',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.quicksand(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).primaryColor,
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      ref.watch(currentBrandConfigProvider.select((c) => c.appName)),
+                      maxLines: 1,
+                      style: GoogleFonts.quicksand(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).primaryColor,
+                      ),
                     ),
                   ),
                 ),

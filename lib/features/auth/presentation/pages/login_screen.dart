@@ -89,9 +89,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     // Watch login state for loading spinner
     final loginState = ref.watch(loginControllerProvider);
     final brand = ref.watch(currentBrandConfigProvider);
+    final primary = Color(brand.primaryColorHex);
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final fieldFill = Theme.of(context).inputDecorationTheme.fillColor;
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -114,11 +116,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Text(
                     brand.appName,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                       letterSpacing: -0.5,
-                      color: Colors.black87,
+                      color: onSurface,
                     ),
                   ),
                   const SizedBox(height: 48),
@@ -134,7 +136,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       filled: true,
-                      fillColor: Colors.grey[50],
+                      fillColor: fieldFill,
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
@@ -170,7 +172,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       filled: true,
-                      fillColor: Colors.grey[50],
+                      fillColor: fieldFill,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -196,9 +198,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       Expanded(
                         child: GestureDetector(
                           onTap: () => setState(() => _rememberMe = !_rememberMe),
-                          child: const Text(
+                          child: Text(
                             'Recordar mis datos en este dispositivo',
-                            style: TextStyle(color: Colors.black87),
+                            style: TextStyle(color: onSurface),
                           ),
                         ),
                       ),
@@ -215,7 +217,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        backgroundColor: Colors.blueAccent,
+                        backgroundColor: primary,
                         foregroundColor: Colors.white,
                         elevation: 0,
                       ),
