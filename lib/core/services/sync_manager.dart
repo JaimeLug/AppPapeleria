@@ -28,6 +28,7 @@ class SyncManager {
   final SupabaseFinanceRepository _remoteFinanceRepo;
 
   bool _isSyncing = false;
+  bool _syncRequestedAgain = false;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   SyncManager(
@@ -54,18 +55,27 @@ class SyncManager {
   /// Es el guardado en tiempo real que se dispara al crear/editar y al
   /// recuperar conectividad.
   Future<void> syncPendingData() async {
-    if (_isSyncing) return;
+    // Si ya hay una sincronización en curso, en vez de descartar esta petición
+    // marcamos que hay que volver a correr al terminar. Así una creación hecha
+    // mientras se sincroniza no se queda sin subir.
+    if (_isSyncing) {
+      _syncRequestedAgain = true;
+      return;
+    }
     _isSyncing = true;
 
     try {
-      await _syncCustomers();
-      await _syncProducts();
-      await _syncItems();
-      await _syncOrders();
-      await _syncMovements();
-      await _syncExpenses();
-      await _syncIncomes();
-      await _syncPendingDeletes();
+      do {
+        _syncRequestedAgain = false;
+        await _syncCustomers();
+        await _syncProducts();
+        await _syncItems();
+        await _syncOrders();
+        await _syncMovements();
+        await _syncExpenses();
+        await _syncIncomes();
+        await _syncPendingDeletes();
+      } while (_syncRequestedAgain);
     } catch (e) {
       debugPrint('Error durante la sincronización: $e');
     } finally {
@@ -77,8 +87,13 @@ class SyncManager {
   /// `isSynced`. Se usa al cerrar sesión como red de seguridad y para
   /// re-subir datos cuyo flag apunta a una base anterior.
   Future<void> forceSyncAll() async {
-    if (_isSyncing) return;
+    // Si hay una sincronización normal en curso, esperamos a que termine en
+    // vez de saltarnos el guardado completo (crítico al cerrar sesión).
+    while (_isSyncing) {
+      await Future.delayed(const Duration(milliseconds: 100));
+    }
     _isSyncing = true;
+    debugPrint('Guardado completo iniciado...');
 
     try {
       await _syncCustomers(force: true);
@@ -89,6 +104,7 @@ class SyncManager {
       await _syncExpenses(force: true);
       await _syncIncomes(force: true);
       await _syncPendingDeletes();
+      debugPrint('Guardado completo terminado.');
     } catch (e) {
       debugPrint('Error durante el guardado completo: $e');
     } finally {
@@ -113,10 +129,13 @@ class SyncManager {
   Future<void> _syncProducts({bool force = false}) async {
     final box = Hive.box<ProductModel>('products');
     final pending = box.values.where((p) => force || !p.isSynced).toList();
+    if (force) {
+      debugPrint('Sync productos: ${pending.length} por subir de ${box.length} en caja');
+    }
     for (var product in pending) {
       final result = await _remoteProductRepo.addProduct(product);
       result.fold(
-        (failure) => debugPrint('Error sincronizando producto ${product.id}: ${failure.message}'),
+        (failure) => debugPrint('Error sincronizando producto "${product.name}" (${product.id}): ${failure.message}'),
         (_) async {
           final synced = product.copyWith(isSynced: true);
           await box.put(product.id, synced);
