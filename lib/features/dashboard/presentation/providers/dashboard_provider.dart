@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/money.dart';
 import '../../../finance/presentation/providers/date_provider.dart';
 import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../../sales/presentation/providers/orders_provider.dart';
@@ -71,12 +72,12 @@ final dashboardStatsProvider = Provider.autoDispose<AsyncValue<DashboardStats>>(
 
   double incomeManual = monthIncomes.fold(0.0, (sum, i) => sum + i.amount);
 
-  final totalIncome = incomeFromOrders + incomeManual;
-  final totalExpenses = monthExpenses.fold(0.0, (sum, e) => sum + e.amount);
-  final netProfit = totalIncome - totalExpenses;
+  final totalIncome = roundMoney(incomeFromOrders + incomeManual);
+  final totalExpenses = roundMoney(monthExpenses.fold(0.0, (sum, e) => sum + e.amount));
+  final netProfit = roundMoney(totalIncome - totalExpenses);
 
   // 3. Accounts Receivable
-  final double accountsReceivable = allOrders.fold(0.0, (sum, o) => sum + o.pendingBalance);
+  final double accountsReceivable = roundMoney(allOrders.fold(0.0, (sum, o) => sum + o.pendingBalance));
 
   // 4. Pending Deliveries & Urgent
   final pendingDeliveries = allOrders.where((o) => o.deliveryStatus == 'pending').toList();

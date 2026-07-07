@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../../../../core/utils/money.dart';
 import '../../data/models/expense_model.dart';
 import '../../data/models/income_model.dart';
 
@@ -134,26 +135,27 @@ final monthlyBalanceProvider = Provider.autoDispose<AsyncValue<Map<String, doubl
   final currentMonthExpenses = expenses.where((e) {
     return e.date.year == selectedDate.year && e.date.month == selectedDate.month;
   });
-  final totalExpenses = currentMonthExpenses.fold(0.0, (sum, e) => sum + e.amount);
+  final totalExpenses = roundMoney(currentMonthExpenses.fold(0.0, (sum, e) => sum + e.amount));
 
   final currentMonthOrders = orders.where((o) {
     final date = o.saleDate ?? o.deliveryDate;
     return date.year == selectedDate.year && date.month == selectedDate.month;
   });
-  
+
   double totalOrderIncome = 0.0;
   for (var order in currentMonthOrders) {
     double collected = order.totalPrice - order.pendingBalance;
     if (collected < 0) collected = 0;
     totalOrderIncome += collected;
   }
+  totalOrderIncome = roundMoney(totalOrderIncome);
 
   final currentMonthIncomes = incomes.where((i) {
     return i.date.year == selectedDate.year && i.date.month == selectedDate.month;
   });
-  final totalManualIncome = currentMonthIncomes.fold(0.0, (sum, i) => sum + i.amount);
+  final totalManualIncome = roundMoney(currentMonthIncomes.fold(0.0, (sum, i) => sum + i.amount));
 
-  final totalIncome = totalOrderIncome + totalManualIncome;
+  final totalIncome = roundMoney(totalOrderIncome + totalManualIncome);
 
   return AsyncData({
     'income': totalIncome,

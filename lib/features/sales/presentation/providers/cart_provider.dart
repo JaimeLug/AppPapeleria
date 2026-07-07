@@ -14,6 +14,7 @@ import '../../../settings/presentation/providers/settings_provider.dart';
 import '../../data/repositories/offline_first_order_repository.dart';
 import '../../../../core/services/sync_manager.dart';
 import '../../../../core/providers/remote_repositories_providers.dart';
+import '../../../../core/utils/money.dart';
 
 // Repository Provider
 final orderRepositoryProvider = Provider<OrderRepository>((ref) {
@@ -56,9 +57,9 @@ class CartState {
     this.generalNote = '',
   });
 
-  double get subtotal => items.fold(0, (sum, item) => sum + item.total);
-  double get total => subtotal + extraAmount; // Include extra amount
-  double get pendingBalance => isFullyPaid ? 0.0 : total - advancePayment;
+  double get subtotal => roundMoney(items.fold(0.0, (sum, item) => sum + item.total));
+  double get total => roundMoney(subtotal + extraAmount); // Include extra amount
+  double get pendingBalance => isFullyPaid ? 0.0 : roundMoney(total - advancePayment);
 
   CartState copyWith({
     List<OrderItemEntity>? items,

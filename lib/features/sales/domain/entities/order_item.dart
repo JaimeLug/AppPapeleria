@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/money.dart';
 
 class OrderItemEntity extends Equatable {
   final String productId;
@@ -15,7 +16,7 @@ class OrderItemEntity extends Equatable {
     this.notes,
   });
 
-  double get total => price * quantity;
+  double get total => roundMoney(price * quantity);
 
   @override
   List<Object?> get props => [productId, productName, price, quantity, notes];
