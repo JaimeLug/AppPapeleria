@@ -27,38 +27,53 @@ class OfflineFirstCustomerRepository implements CustomerRepository {
 
   @override
   Stream<List<CustomerEntity>> watchCustomers() async* {
-    _fetchRemoteAndSync(); // Background fetch
+    _fetchRemoteAndSync(); // Fetch inicial inmediato
+    // Realtime: cambios de otros dispositivos se reflejan en vivo.
+    final remoteSub = _remoteRepo.watchCustomers().listen(
+      _reconcile,
+      onError: (e) => debugPrint('Realtime clientes: $e'),
+    );
     yield _box.values.toList();
-    await for (final _ in _box.watch()) {
-      yield _box.values.toList();
+    try {
+      await for (final _ in _box.watch()) {
+        yield _box.values.toList();
+      }
+    } finally {
+      await remoteSub.cancel();
     }
   }
 
   Future<void> _fetchRemoteAndSync() async {
     try {
       final remoteData = await _remoteRepo.getAllCustomers();
-      final remoteIds = <String>{};
-      for (var remoteCustomer in remoteData) {
-        remoteIds.add(remoteCustomer.id);
-        final localCustomer = _box.get(remoteCustomer.id);
-
-        // Only update if remote is newer or not exists locally
-        if (localCustomer == null ||
-           (remoteCustomer is CustomerModel && remoteCustomer.updatedAt.isAfter(localCustomer.updatedAt))) {
-          await _box.put(remoteCustomer.id, remoteCustomer as CustomerModel);
-        }
-      }
-      // Poda: elimina lo que ya fue sincronizado pero ya no existe en remoto
-      // (borrado desde otro dispositivo). No toca lo creado local sin subir.
-      final toRemove = _box.values
-          .where((c) => c.isSynced && !remoteIds.contains(c.id))
-          .map((c) => c.id)
-          .toList();
-      for (final id in toRemove) {
-        await _box.delete(id);
-      }
+      await _reconcile(remoteData);
     } catch (e) {
       debugPrint('Error en fetch remoto de clientes: $e');
+    }
+  }
+
+  /// Reconcilia la lista remota (activa) contra la caja local.
+  Future<void> _reconcile(List<CustomerEntity> remoteData) async {
+    final remoteIds = <String>{};
+    for (var remoteCustomer in remoteData) {
+      remoteIds.add(remoteCustomer.id);
+      final localCustomer = _box.get(remoteCustomer.id);
+      if (localCustomer == null ||
+          (remoteCustomer is CustomerModel && remoteCustomer.updatedAt.isAfter(localCustomer.updatedAt))) {
+        await _box.put(remoteCustomer.id, remoteCustomer as CustomerModel);
+      }
+    }
+    // Poda: elimina lo sincronizado que ya no existe en remoto (borrado en otro
+    // dispositivo). No toca lo creado local sin subir.
+    final toRemove = _box.values
+        .where((c) => c.isSynced && !remoteIds.contains(c.id))
+        .map((c) => c.id)
+        .toList();
+    if (toRemove.isNotEmpty) {
+      debugPrint('Poda clientes: ${toRemove.length} eliminado(s) (borrados en remoto)');
+    }
+    for (final id in toRemove) {
+      await _box.delete(id);
     }
   }
 

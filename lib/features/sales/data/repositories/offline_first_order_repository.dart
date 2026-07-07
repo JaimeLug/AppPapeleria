@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/order.dart';
@@ -24,10 +25,21 @@ class OfflineFirstOrderRepository implements OrderRepository {
 
   @override
   Stream<List<OrderEntity>> watchOrders() async* {
-    _fetchRemoteAndSync(); // Background fetch
+    _fetchRemoteAndSync(); // Fetch inicial inmediato
+    // Realtime: al detectar un cambio remoto, disparamos un re-fetch completo
+    // (los pedidos traen renglones en subtabla que el stream realtime no
+    // incluye, así que no reconciliamos su dato directo).
+    final remoteSub = _remoteRepo.watchOrders().listen(
+      (_) => _fetchRemoteAndSync(),
+      onError: (e) => debugPrint('Realtime pedidos: $e'),
+    );
     yield _box.values.toList();
-    await for (final _ in _box.watch()) {
-      yield _box.values.toList();
+    try {
+      await for (final _ in _box.watch()) {
+        yield _box.values.toList();
+      }
+    } finally {
+      await remoteSub.cancel();
     }
   }
 
@@ -49,6 +61,9 @@ class OfflineFirstOrderRepository implements OrderRepository {
             .where((o) => o.isSynced && !remoteIds.contains(o.id))
             .map((o) => o.id)
             .toList();
+        if (toRemove.isNotEmpty) {
+          debugPrint('Poda pedidos: ${toRemove.length} eliminado(s) (borrados en remoto)');
+        }
         for (final id in toRemove) {
           await _box.delete(id);
         }

@@ -8,6 +8,47 @@ class SupabaseFinanceRepository {
 
   SupabaseFinanceRepository(this._supabase);
 
+  ExpenseModel _mapExpense(Map<String, dynamic> json) => ExpenseModel(
+        id: json['id'],
+        description: json['description'],
+        amount: (json['amount'] ?? 0.0).toDouble(),
+        date: DateTime.parse(json['date']),
+        category: json['category'] ?? 'Otros',
+        isSynced: true,
+        updatedAt: json['updated_at'] != null
+            ? DateTime.parse(json['updated_at'])
+            : DateTime.parse(json['date']),
+      );
+
+  IncomeModel _mapIncome(Map<String, dynamic> json) => IncomeModel(
+        id: json['id'],
+        description: json['description'],
+        amount: (json['amount'] ?? 0.0).toDouble(),
+        date: DateTime.parse(json['date']),
+        category: json['category'] ?? 'General',
+        isSynced: true,
+        updatedAt: json['updated_at'] != null
+            ? DateTime.parse(json['updated_at'])
+            : DateTime.parse(json['date']),
+      );
+
+  /// Streams en vivo (Realtime) de gastos e ingresos activos.
+  Stream<List<ExpenseModel>> watchExpenses() {
+    return _supabase
+        .from('expenses')
+        .stream(primaryKey: ['id'])
+        .eq('is_deleted', false)
+        .map((data) => data.map(_mapExpense).toList());
+  }
+
+  Stream<List<IncomeModel>> watchIncomes() {
+    return _supabase
+        .from('incomes')
+        .stream(primaryKey: ['id'])
+        .eq('is_deleted', false)
+        .map((data) => data.map(_mapIncome).toList());
+  }
+
   // --- Expenses ---
 
   Future<List<ExpenseModel>> getExpenses() async {

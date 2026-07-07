@@ -21,9 +21,11 @@ final customerListStreamProvider = StreamProvider<List<CustomerEntity>>((ref) {
   return repository.watchCustomers();
 });
 
-// Legacy FutureProvider
-final customerListProvider = FutureProvider<List<CustomerModel>>((ref) async {
+// Reactivo: emite la lista de clientes en vivo desde la caja local
+// (refleja altas, borrados y cambios sincronizados de otros dispositivos).
+final customerListProvider = StreamProvider<List<CustomerModel>>((ref) {
   final repository = ref.watch(customerRepositoryProvider);
-  final customers = await repository.getAllCustomers();
-  return customers.map((e) => CustomerModel.fromEntity(e)).toList();
+  return repository.watchCustomers().map(
+        (customers) => customers.map((e) => CustomerModel.fromEntity(e)).toList(),
+      );
 });

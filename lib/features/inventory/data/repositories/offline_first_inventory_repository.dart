@@ -28,10 +28,19 @@ class OfflineFirstInventoryRepository implements InventoryRepository {
 
   @override
   Stream<List<InventoryItemModel>> watchItems() async* {
-    _fetchRemoteItems(); // Background fetch
+    _fetchRemoteItems(); // Fetch inicial inmediato
+    // Realtime: cambios de otros dispositivos en vivo.
+    final remoteSub = _remoteRepo.watchItems().listen(
+      _reconcileItems,
+      onError: (e) => debugPrint('Realtime inventario: $e'),
+    );
     yield _itemBox.values.where((i) => !i.isDeleted).toList();
-    await for (final _ in _itemBox.watch()) {
-      yield _itemBox.values.where((i) => !i.isDeleted).toList();
+    try {
+      await for (final _ in _itemBox.watch()) {
+        yield _itemBox.values.where((i) => !i.isDeleted).toList();
+      }
+    } finally {
+      await remoteSub.cancel();
     }
   }
 
@@ -61,25 +70,33 @@ class OfflineFirstInventoryRepository implements InventoryRepository {
   Future<void> _fetchRemoteItems() async {
     try {
       final remote = await _remoteRepo.getAllItems();
-      final remoteIds = <String>{};
-      for (var item in remote) {
-        remoteIds.add(item.id);
-        final local = _itemBox.get(item.id);
-        if (local == null || item.updatedAt.isAfter(local.updatedAt)) {
-          await _itemBox.put(item.id, item);
-        }
-      }
-      // Poda: elimina lo sincronizado que ya no existe activo en remoto
-      // (borrado en otro dispositivo). No toca lo creado local sin subir.
-      final toRemove = _itemBox.values
-          .where((i) => i.isSynced && !remoteIds.contains(i.id))
-          .map((i) => i.id)
-          .toList();
-      for (final id in toRemove) {
-        await _itemBox.delete(id);
-      }
+      await _reconcileItems(remote);
     } catch (e) {
       debugPrint('Error en fetch remoto de ítems: $e');
+    }
+  }
+
+  /// Reconcilia la lista remota (activa) de ítems contra la caja local.
+  Future<void> _reconcileItems(List<InventoryItemModel> remote) async {
+    final remoteIds = <String>{};
+    for (var item in remote) {
+      remoteIds.add(item.id);
+      final local = _itemBox.get(item.id);
+      if (local == null || item.updatedAt.isAfter(local.updatedAt)) {
+        await _itemBox.put(item.id, item);
+      }
+    }
+    // Poda: elimina lo sincronizado que ya no existe activo en remoto
+    // (borrado en otro dispositivo). No toca lo creado local sin subir.
+    final toRemove = _itemBox.values
+        .where((i) => i.isSynced && !remoteIds.contains(i.id))
+        .map((i) => i.id)
+        .toList();
+    if (toRemove.isNotEmpty) {
+      debugPrint('Poda inventario: ${toRemove.length} eliminado(s) (borrados en remoto)');
+    }
+    for (final id in toRemove) {
+      await _itemBox.delete(id);
     }
   }
 

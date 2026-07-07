@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/product.dart';
@@ -24,36 +25,49 @@ class OfflineFirstProductRepository implements ProductRepository {
 
   @override
   Stream<List<ProductEntity>> watchProducts() async* {
-    _fetchRemoteAndSync(); // Background fetch
+    _fetchRemoteAndSync(); // Fetch inicial inmediato
+    // Realtime: cada cambio en Supabase (alta/edición/borrado en otro
+    // dispositivo) se reconcilia en la caja local en vivo.
+    final remoteSub = _remoteRepo.watchProducts().listen(
+      _reconcile,
+      onError: (e) => debugPrint('Realtime productos: $e'),
+    );
     yield _box.values.toList();
-    await for (final _ in _box.watch()) {
-      yield _box.values.toList();
+    try {
+      await for (final _ in _box.watch()) {
+        yield _box.values.toList();
+      }
+    } finally {
+      await remoteSub.cancel();
     }
   }
 
   Future<void> _fetchRemoteAndSync() async {
     final result = await _remoteRepo.getProducts();
-    result.fold(
-      (l) => null,
-      (remoteProducts) async {
-        final remoteIds = <String>{};
-        for (var remote in remoteProducts) {
-          remoteIds.add(remote.id);
-          final local = _box.get(remote.id);
-          if (local == null || (remote is ProductModel && remote.updatedAt.isAfter(local.updatedAt))) {
-            await _box.put(remote.id, remote as ProductModel);
-          }
-        }
-        // Poda: elimina lo sincronizado que ya no existe en remoto (borrado en otro dispositivo).
-        final toRemove = _box.values
-            .where((p) => p.isSynced && !remoteIds.contains(p.id))
-            .map((p) => p.id)
-            .toList();
-        for (final id in toRemove) {
-          await _box.delete(id);
-        }
-      },
-    );
+    result.fold((l) => null, (remote) => _reconcile(remote));
+  }
+
+  /// Reconcilia una lista remota (activa) contra la caja local: actualiza lo
+  /// más nuevo y poda lo ya sincronizado que dejó de existir en remoto.
+  Future<void> _reconcile(List<ProductEntity> remoteProducts) async {
+    final remoteIds = <String>{};
+    for (var remote in remoteProducts) {
+      remoteIds.add(remote.id);
+      final local = _box.get(remote.id);
+      if (local == null || (remote is ProductModel && remote.updatedAt.isAfter(local.updatedAt))) {
+        await _box.put(remote.id, remote as ProductModel);
+      }
+    }
+    final toRemove = _box.values
+        .where((p) => p.isSynced && !remoteIds.contains(p.id))
+        .map((p) => p.id)
+        .toList();
+    if (toRemove.isNotEmpty) {
+      debugPrint('Poda productos: ${toRemove.length} eliminado(s) (borrados en remoto)');
+    }
+    for (final id in toRemove) {
+      await _box.delete(id);
+    }
   }
 
   @override

@@ -29,43 +29,65 @@ class OfflineFirstFinanceRepository implements FinanceRepository {
 
   @override
   Stream<List<ExpenseModel>> watchExpenses() async* {
-    _fetchRemoteExpenses(); // Background fetch
+    _fetchRemoteExpenses(); // Fetch inicial inmediato
+    final remoteSub = _remoteRepo.watchExpenses().listen(
+      _reconcileExpenses,
+      onError: (e) => debugPrint('Realtime gastos: $e'),
+    );
     yield _expenseBox.values.toList();
-    await for (final _ in _expenseBox.watch()) {
-      yield _expenseBox.values.toList();
+    try {
+      await for (final _ in _expenseBox.watch()) {
+        yield _expenseBox.values.toList();
+      }
+    } finally {
+      await remoteSub.cancel();
     }
   }
 
   @override
   Stream<List<IncomeModel>> watchIncomes() async* {
-    _fetchRemoteIncomes(); // Background fetch
+    _fetchRemoteIncomes(); // Fetch inicial inmediato
+    final remoteSub = _remoteRepo.watchIncomes().listen(
+      _reconcileIncomes,
+      onError: (e) => debugPrint('Realtime ingresos: $e'),
+    );
     yield _incomeBox.values.toList();
-    await for (final _ in _incomeBox.watch()) {
-      yield _incomeBox.values.toList();
+    try {
+      await for (final _ in _incomeBox.watch()) {
+        yield _incomeBox.values.toList();
+      }
+    } finally {
+      await remoteSub.cancel();
     }
   }
 
   Future<void> _fetchRemoteExpenses() async {
     try {
       final remote = await _remoteRepo.getExpenses();
-      final remoteIds = <String>{};
-      for (var expense in remote) {
-        remoteIds.add(expense.id);
-        final local = _expenseBox.get(expense.id);
-        if (local == null || expense.updatedAt.isAfter(local.updatedAt)) {
-          await _expenseBox.put(expense.id, expense);
-        }
-      }
-      // Poda: elimina lo sincronizado que ya no existe en remoto (borrado en otro dispositivo).
-      final toRemove = _expenseBox.values
-          .where((e) => e.isSynced && !remoteIds.contains(e.id))
-          .map((e) => e.id)
-          .toList();
-      for (final id in toRemove) {
-        await _expenseBox.delete(id);
-      }
+      await _reconcileExpenses(remote);
     } catch (e) {
       debugPrint('Error en fetch remoto de gastos: $e');
+    }
+  }
+
+  Future<void> _reconcileExpenses(List<ExpenseModel> remote) async {
+    final remoteIds = <String>{};
+    for (var expense in remote) {
+      remoteIds.add(expense.id);
+      final local = _expenseBox.get(expense.id);
+      if (local == null || expense.updatedAt.isAfter(local.updatedAt)) {
+        await _expenseBox.put(expense.id, expense);
+      }
+    }
+    final toRemove = _expenseBox.values
+        .where((e) => e.isSynced && !remoteIds.contains(e.id))
+        .map((e) => e.id)
+        .toList();
+    if (toRemove.isNotEmpty) {
+      debugPrint('Poda gastos: ${toRemove.length} eliminado(s) (borrados en remoto)');
+    }
+    for (final id in toRemove) {
+      await _expenseBox.delete(id);
     }
   }
 
@@ -93,24 +115,30 @@ class OfflineFirstFinanceRepository implements FinanceRepository {
   Future<void> _fetchRemoteIncomes() async {
     try {
       final remote = await _remoteRepo.getIncomes();
-      final remoteIds = <String>{};
-      for (var income in remote) {
-        remoteIds.add(income.id);
-        final local = _incomeBox.get(income.id);
-        if (local == null || income.updatedAt.isAfter(local.updatedAt)) {
-          await _incomeBox.put(income.id, income);
-        }
-      }
-      // Poda: elimina lo sincronizado que ya no existe en remoto (borrado en otro dispositivo).
-      final toRemove = _incomeBox.values
-          .where((i) => i.isSynced && !remoteIds.contains(i.id))
-          .map((i) => i.id)
-          .toList();
-      for (final id in toRemove) {
-        await _incomeBox.delete(id);
-      }
+      await _reconcileIncomes(remote);
     } catch (e) {
       debugPrint('Error en fetch remoto de ingresos: $e');
+    }
+  }
+
+  Future<void> _reconcileIncomes(List<IncomeModel> remote) async {
+    final remoteIds = <String>{};
+    for (var income in remote) {
+      remoteIds.add(income.id);
+      final local = _incomeBox.get(income.id);
+      if (local == null || income.updatedAt.isAfter(local.updatedAt)) {
+        await _incomeBox.put(income.id, income);
+      }
+    }
+    final toRemove = _incomeBox.values
+        .where((i) => i.isSynced && !remoteIds.contains(i.id))
+        .map((i) => i.id)
+        .toList();
+    if (toRemove.isNotEmpty) {
+      debugPrint('Poda ingresos: ${toRemove.length} eliminado(s) (borrados en remoto)');
+    }
+    for (final id in toRemove) {
+      await _incomeBox.delete(id);
     }
   }
 

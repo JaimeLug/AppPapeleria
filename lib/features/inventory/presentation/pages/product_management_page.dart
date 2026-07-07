@@ -24,7 +24,7 @@ class _ProductManagementPageState extends ConsumerState<ProductManagementPage> {
 
   @override
   Widget build(BuildContext context) {
-    final productListAsync = ref.watch(productListProvider);
+    final productListAsync = ref.watch(productListStreamProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -183,7 +183,7 @@ class _ProductFormDialogBodyState extends ConsumerState<_ProductFormDialogBody> 
   Widget build(BuildContext context) {
     final isEditing = widget.productToEdit != null;
 
-    final productList = ref.read(productListProvider).value ?? [];
+    final productList = ref.read(productListStreamProvider).value ?? [];
     final existingCategories = productList.map((p) => p.category).toSet().toList();
     if (existingCategories.isEmpty) existingCategories.add('General');
 

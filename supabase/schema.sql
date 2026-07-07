@@ -182,9 +182,12 @@ end $$;
 -- ============================================================================
 do $$
 begin
-  begin execute 'alter publication supabase_realtime add table public.products';  exception when duplicate_object then null; end;
-  begin execute 'alter publication supabase_realtime add table public.customers'; exception when duplicate_object then null; end;
-  begin execute 'alter publication supabase_realtime add table public.orders';    exception when duplicate_object then null; end;
+  begin execute 'alter publication supabase_realtime add table public.products';        exception when duplicate_object then null; end;
+  begin execute 'alter publication supabase_realtime add table public.customers';       exception when duplicate_object then null; end;
+  begin execute 'alter publication supabase_realtime add table public.orders';          exception when duplicate_object then null; end;
+  begin execute 'alter publication supabase_realtime add table public.inventory_items'; exception when duplicate_object then null; end;
+  begin execute 'alter publication supabase_realtime add table public.expenses';        exception when duplicate_object then null; end;
+  begin execute 'alter publication supabase_realtime add table public.incomes';         exception when duplicate_object then null; end;
 end $$;
 
 

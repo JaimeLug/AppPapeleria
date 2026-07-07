@@ -74,9 +74,9 @@ class InventoryItemsNotifier extends StateNotifier<List<InventoryItemModel>> {
 // Current Filter state
 final inventoryFilterProvider = StateProvider<String>((ref) => 'Todos');
 
-// Filtered items computed provider
+// Filtered items computed provider (reactivo: deriva del stream de la caja)
 final filteredInventoryItemsProvider = Provider<List<InventoryItemModel>>((ref) {
-  final items = ref.watch(inventoryItemsProvider);
+  final items = ref.watch(inventoryItemsStreamProvider).value ?? <InventoryItemModel>[];
   final filter = ref.watch(inventoryFilterProvider);
 
   if (filter == 'Todos') return items;

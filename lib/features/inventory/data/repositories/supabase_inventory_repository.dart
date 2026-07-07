@@ -10,6 +10,15 @@ class SupabaseInventoryRepository {
 
   // --- Inventory Item Operations ---
 
+  /// Stream en vivo (Realtime) de los ítems activos.
+  Stream<List<InventoryItemModel>> watchItems() {
+    return _supabase
+        .from('inventory_items')
+        .stream(primaryKey: ['id'])
+        .eq('is_deleted', false)
+        .map((data) => data.map((json) => _mapToItem(json)).toList());
+  }
+
   Future<List<InventoryItemModel>> getAllItems() async {
     try {
       final response = await _supabase
