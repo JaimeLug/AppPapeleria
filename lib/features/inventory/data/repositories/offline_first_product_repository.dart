@@ -58,15 +58,18 @@ class OfflineFirstProductRepository implements ProductRepository {
         await _box.put(remote.id, remote as ProductModel);
       }
     }
-    final toRemove = _box.values
-        .where((p) => p.isSynced && !remoteIds.contains(p.id))
+    // Poda SEGURA: de los candidatos (sincronizados que ya no están activos),
+    // solo eliminamos los que el servidor confirma como borrados. Los que no
+    // existen en el servidor son locales con flag obsoleto y se conservan.
+    final candidates = _box.values
+        .where((p) => !remoteIds.contains(p.id))
         .map((p) => p.id)
         .toList();
-    if (toRemove.isNotEmpty) {
-      debugPrint('Poda productos: ${toRemove.length} eliminado(s) (borrados en remoto)');
-    }
-    for (final id in toRemove) {
-      await _box.delete(id);
+    if (candidates.isNotEmpty) {
+      final confirmed = await _remoteRepo.deletedIdsAmong(candidates);
+      for (final id in confirmed) {
+        await _box.delete(id);
+      }
     }
   }
 

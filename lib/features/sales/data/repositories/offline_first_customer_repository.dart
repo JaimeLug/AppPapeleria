@@ -65,15 +65,16 @@ class OfflineFirstCustomerRepository implements CustomerRepository {
     }
     // Poda: elimina lo sincronizado que ya no existe en remoto (borrado en otro
     // dispositivo). No toca lo creado local sin subir.
-    final toRemove = _box.values
-        .where((c) => c.isSynced && !remoteIds.contains(c.id))
+    // Poda segura: solo elimina lo que el servidor confirma como borrado.
+    final candidates = _box.values
+        .where((c) => !remoteIds.contains(c.id))
         .map((c) => c.id)
         .toList();
-    if (toRemove.isNotEmpty) {
-      debugPrint('Poda clientes: ${toRemove.length} eliminado(s) (borrados en remoto)');
-    }
-    for (final id in toRemove) {
-      await _box.delete(id);
+    if (candidates.isNotEmpty) {
+      final confirmed = await _remoteRepo.deletedIdsAmong(candidates);
+      for (final id in confirmed) {
+        await _box.delete(id);
+      }
     }
   }
 

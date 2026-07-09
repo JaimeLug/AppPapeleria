@@ -79,15 +79,16 @@ class OfflineFirstFinanceRepository implements FinanceRepository {
         await _expenseBox.put(expense.id, expense);
       }
     }
-    final toRemove = _expenseBox.values
-        .where((e) => e.isSynced && !remoteIds.contains(e.id))
+    // Poda segura: solo elimina lo que el servidor confirma como borrado.
+    final candidates = _expenseBox.values
+        .where((e) => !remoteIds.contains(e.id))
         .map((e) => e.id)
         .toList();
-    if (toRemove.isNotEmpty) {
-      debugPrint('Poda gastos: ${toRemove.length} eliminado(s) (borrados en remoto)');
-    }
-    for (final id in toRemove) {
-      await _expenseBox.delete(id);
+    if (candidates.isNotEmpty) {
+      final confirmed = await _remoteRepo.deletedExpenseIdsAmong(candidates);
+      for (final id in confirmed) {
+        await _expenseBox.delete(id);
+      }
     }
   }
 
@@ -130,15 +131,16 @@ class OfflineFirstFinanceRepository implements FinanceRepository {
         await _incomeBox.put(income.id, income);
       }
     }
-    final toRemove = _incomeBox.values
-        .where((i) => i.isSynced && !remoteIds.contains(i.id))
+    // Poda segura: solo elimina lo que el servidor confirma como borrado.
+    final candidates = _incomeBox.values
+        .where((i) => !remoteIds.contains(i.id))
         .map((i) => i.id)
         .toList();
-    if (toRemove.isNotEmpty) {
-      debugPrint('Poda ingresos: ${toRemove.length} eliminado(s) (borrados en remoto)');
-    }
-    for (final id in toRemove) {
-      await _incomeBox.delete(id);
+    if (candidates.isNotEmpty) {
+      final confirmed = await _remoteRepo.deletedIncomeIdsAmong(candidates);
+      for (final id in confirmed) {
+        await _incomeBox.delete(id);
+      }
     }
   }
 

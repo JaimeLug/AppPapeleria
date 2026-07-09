@@ -11,6 +11,21 @@ class SupabaseOrderRepository implements OrderRepository {
 
   SupabaseOrderRepository(this._supabase);
 
+  /// Ids que el servidor confirma como borrados (para poda segura).
+  Future<Set<String>> deletedIdsAmong(List<String> ids) async {
+    if (ids.isEmpty) return {};
+    try {
+      final res = await _supabase
+          .from('orders')
+          .select('id')
+          .inFilter('id', ids)
+          .eq('is_deleted', true);
+      return res.map((r) => r['id'] as String).toSet();
+    } catch (_) {
+      return {};
+    }
+  }
+
   @override
   Future<Either<Failure, List<OrderEntity>>> getOrders() async {
     try {
@@ -21,19 +36,27 @@ class SupabaseOrderRepository implements OrderRepository {
           .eq('is_deleted', false)
           .order('sale_date', ascending: false);
 
-      final List<OrderEntity> orders = [];
-
-      for (var orderJson in ordersResponse) {
-        final orderId = orderJson['id'];
-        
-        // Fetch items for this order
+      // Renglones de TODOS los pedidos en una sola query (evita N+1).
+      final orderIds =
+          ordersResponse.map((o) => o['id'] as String).toList();
+      final Map<String, List<OrderItemModel>> itemsByOrder = {};
+      if (orderIds.isNotEmpty) {
         final itemsResponse = await _supabase
             .from('order_items')
             .select()
-            .eq('order_id', orderId);
-        
-        final items = itemsResponse.map((itemJson) => OrderItemModel.fromMap(itemJson)).toList();
-        
+            .inFilter('order_id', orderIds);
+        for (final itemJson in itemsResponse) {
+          final oid = itemJson['order_id'] as String;
+          (itemsByOrder[oid] ??= []).add(OrderItemModel.fromMap(itemJson));
+        }
+      }
+
+      final List<OrderEntity> orders = [];
+
+      for (var orderJson in ordersResponse) {
+        final orderId = orderJson['id'] as String;
+        final items = itemsByOrder[orderId] ?? const [];
+
         // Map order fields from snake_case to model
         final order = OrderModel(
           id: orderJson['id'],

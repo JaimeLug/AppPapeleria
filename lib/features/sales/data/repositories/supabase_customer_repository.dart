@@ -9,6 +9,21 @@ class SupabaseCustomerRepository implements CustomerRepository {
 
   SupabaseCustomerRepository(this._supabase);
 
+  /// Ids que el servidor confirma como borrados (para poda segura).
+  Future<Set<String>> deletedIdsAmong(List<String> ids) async {
+    if (ids.isEmpty) return {};
+    try {
+      final res = await _supabase
+          .from('customers')
+          .select('id')
+          .inFilter('id', ids)
+          .eq('is_deleted', true);
+      return res.map((r) => r['id'] as String).toSet();
+    } catch (_) {
+      return {};
+    }
+  }
+
   @override
   Future<List<CustomerEntity>> getAllCustomers() async {
     try {

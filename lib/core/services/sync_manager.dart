@@ -93,7 +93,6 @@ class SyncManager {
       await Future.delayed(const Duration(milliseconds: 100));
     }
     _isSyncing = true;
-    debugPrint('Guardado completo iniciado...');
 
     try {
       await _syncCustomers(force: true);
@@ -104,7 +103,6 @@ class SyncManager {
       await _syncExpenses(force: true);
       await _syncIncomes(force: true);
       await _syncPendingDeletes();
-      debugPrint('Guardado completo terminado.');
     } catch (e) {
       debugPrint('Error durante el guardado completo: $e');
     } finally {
@@ -129,9 +127,6 @@ class SyncManager {
   Future<void> _syncProducts({bool force = false}) async {
     final box = Hive.box<ProductModel>('products');
     final pending = box.values.where((p) => force || !p.isSynced).toList();
-    if (force) {
-      debugPrint('Sync productos: ${pending.length} por subir de ${box.length} en caja');
-    }
     for (var product in pending) {
       final result = await _remoteProductRepo.addProduct(product);
       result.fold(

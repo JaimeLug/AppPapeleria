@@ -10,6 +10,24 @@ class SupabaseProductRepository implements ProductRepository {
 
   SupabaseProductRepository(this._supabase);
 
+  /// De una lista de ids, devuelve los que en el servidor están marcados como
+  /// borrados (is_deleted = true). Se usa para la poda segura: solo se elimina
+  /// del cache local lo que el servidor CONFIRMA como borrado; los ids que no
+  /// existen en el servidor (flags locales obsoletos) no se tocan.
+  Future<Set<String>> deletedIdsAmong(List<String> ids) async {
+    if (ids.isEmpty) return {};
+    try {
+      final res = await _supabase
+          .from('products')
+          .select('id')
+          .inFilter('id', ids)
+          .eq('is_deleted', true);
+      return res.map((r) => r['id'] as String).toSet();
+    } catch (_) {
+      return {}; // Ante error, no podar (seguro).
+    }
+  }
+
   @override
   Future<Either<Failure, List<ProductEntity>>> getProducts() async {
     try {

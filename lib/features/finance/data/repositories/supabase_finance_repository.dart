@@ -32,6 +32,27 @@ class SupabaseFinanceRepository {
             : DateTime.parse(json['date']),
       );
 
+  /// Ids que el servidor confirma como borrados (para poda segura).
+  Future<Set<String>> _deletedIdsAmong(String table, List<String> ids) async {
+    if (ids.isEmpty) return {};
+    try {
+      final res = await _supabase
+          .from(table)
+          .select('id')
+          .inFilter('id', ids)
+          .eq('is_deleted', true);
+      return res.map((r) => r['id'] as String).toSet();
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<Set<String>> deletedExpenseIdsAmong(List<String> ids) =>
+      _deletedIdsAmong('expenses', ids);
+
+  Future<Set<String>> deletedIncomeIdsAmong(List<String> ids) =>
+      _deletedIdsAmong('incomes', ids);
+
   /// Streams en vivo (Realtime) de gastos e ingresos activos.
   Stream<List<ExpenseModel>> watchExpenses() {
     return _supabase

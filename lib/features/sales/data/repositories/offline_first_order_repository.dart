@@ -57,15 +57,16 @@ class OfflineFirstOrderRepository implements OrderRepository {
           }
         }
         // Poda: elimina lo sincronizado que ya no existe en remoto (borrado en otro dispositivo).
-        final toRemove = _box.values
-            .where((o) => o.isSynced && !remoteIds.contains(o.id))
+        // Poda segura: solo elimina lo que el servidor confirma como borrado.
+        final candidates = _box.values
+            .where((o) => !remoteIds.contains(o.id))
             .map((o) => o.id)
             .toList();
-        if (toRemove.isNotEmpty) {
-          debugPrint('Poda pedidos: ${toRemove.length} eliminado(s) (borrados en remoto)');
-        }
-        for (final id in toRemove) {
-          await _box.delete(id);
+        if (candidates.isNotEmpty) {
+          final confirmed = await _remoteRepo.deletedIdsAmong(candidates);
+          for (final id in confirmed) {
+            await _box.delete(id);
+          }
         }
       },
     );

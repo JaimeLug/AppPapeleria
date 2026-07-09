@@ -88,15 +88,16 @@ class OfflineFirstInventoryRepository implements InventoryRepository {
     }
     // Poda: elimina lo sincronizado que ya no existe activo en remoto
     // (borrado en otro dispositivo). No toca lo creado local sin subir.
-    final toRemove = _itemBox.values
-        .where((i) => i.isSynced && !remoteIds.contains(i.id))
+    // Poda segura: solo elimina lo que el servidor confirma como borrado.
+    final candidates = _itemBox.values
+        .where((i) => !remoteIds.contains(i.id))
         .map((i) => i.id)
         .toList();
-    if (toRemove.isNotEmpty) {
-      debugPrint('Poda inventario: ${toRemove.length} eliminado(s) (borrados en remoto)');
-    }
-    for (final id in toRemove) {
-      await _itemBox.delete(id);
+    if (candidates.isNotEmpty) {
+      final confirmed = await _remoteRepo.deletedIdsAmong(candidates);
+      for (final id in confirmed) {
+        await _itemBox.delete(id);
+      }
     }
   }
 

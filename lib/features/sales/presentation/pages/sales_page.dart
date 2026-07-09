@@ -69,7 +69,7 @@ class _ProductCatalogState extends ConsumerState<_ProductCatalog> {
 
   @override
   Widget build(BuildContext context) {
-    final productsAsync = ref.watch(productListProvider);
+    final productsAsync = ref.watch(productListStreamProvider);
 
     return Container(
       padding: const EdgeInsets.all(24),

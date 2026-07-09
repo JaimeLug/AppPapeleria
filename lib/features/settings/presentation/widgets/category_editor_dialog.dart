@@ -14,7 +14,7 @@ class CategoryEditorDialog extends ConsumerStatefulWidget {
 class _CategoryEditorDialogState extends ConsumerState<CategoryEditorDialog> {
   @override
   Widget build(BuildContext context) {
-    final productsAsync = ref.watch(productListProvider);
+    final productsAsync = ref.watch(productListStreamProvider);
 
     return AlertDialog(
       title: Row(

@@ -10,6 +10,21 @@ class SupabaseInventoryRepository {
 
   // --- Inventory Item Operations ---
 
+  /// Ids que el servidor confirma como borrados (para poda segura).
+  Future<Set<String>> deletedIdsAmong(List<String> ids) async {
+    if (ids.isEmpty) return {};
+    try {
+      final res = await _supabase
+          .from('inventory_items')
+          .select('id')
+          .inFilter('id', ids)
+          .eq('is_deleted', true);
+      return res.map((r) => r['id'] as String).toSet();
+    } catch (_) {
+      return {};
+    }
+  }
+
   /// Stream en vivo (Realtime) de los ítems activos.
   Stream<List<InventoryItemModel>> watchItems() {
     return _supabase
