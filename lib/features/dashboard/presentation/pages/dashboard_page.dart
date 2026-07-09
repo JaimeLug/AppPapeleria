@@ -357,6 +357,17 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     return true; // Trend, Top Products, Next Deliveries, Quick Note, etc.
   }
 
+  /// Layout efectivo actual: el guardado, o el por defecto si nunca se ha
+  /// personalizado. DEBE coincidir con el fallback usado al construir el
+  /// dashboard; si no, las mutaciones operan sobre una lista vacía y no
+  /// encuentran los widgets (bug de "no guarda nada").
+  List<DashboardWidgetConfig> _effectiveLayout() {
+    return ref.read(settingsProvider).dashboardLayout ??
+        DashboardWidgetIds.defaultLayout
+            .map((id) => DashboardWidgetConfig(id: id))
+            .toList();
+  }
+
   void _resizeWidgetWidth(DashboardWidgetConfig config) {
     // 1 -> 2 -> [3/4] -> 1
     int maxSpan = 4; // Max columns is usually 4
@@ -365,7 +376,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     if (newSpan > maxSpan) newSpan = 1;
     
     final settingsNotifier = ref.read(settingsProvider.notifier);
-    final currentLayout = List<DashboardWidgetConfig>.from(ref.read(settingsProvider).dashboardLayout ?? []);
+    final currentLayout = List<DashboardWidgetConfig>.from(_effectiveLayout());
     
     final index = currentLayout.indexWhere((c) => c.id == config.id);
     if (index != -1) {
@@ -382,7 +393,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
     if (newSpan > maxSpan) newSpan = 1;
     
     final settingsNotifier = ref.read(settingsProvider.notifier);
-    final currentLayout = List<DashboardWidgetConfig>.from(ref.read(settingsProvider).dashboardLayout ?? []);
+    final currentLayout = List<DashboardWidgetConfig>.from(_effectiveLayout());
     
     final index = currentLayout.indexWhere((c) => c.id == config.id);
     if (index != -1) {
@@ -393,14 +404,14 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
   void _removeWidget(String id) {
     final settingsNotifier = ref.read(settingsProvider.notifier);
-    final currentLayout = List<DashboardWidgetConfig>.from(ref.read(settingsProvider).dashboardLayout ?? []);
+    final currentLayout = List<DashboardWidgetConfig>.from(_effectiveLayout());
     currentLayout.removeWhere((c) => c.id == id);
     settingsNotifier.updateDashboardLayout(currentLayout);
   }
 
   void _addWidget(String id) {
     final settingsNotifier = ref.read(settingsProvider.notifier);
-    final currentLayout = List<DashboardWidgetConfig>.from(ref.read(settingsProvider).dashboardLayout ?? []);
+    final currentLayout = List<DashboardWidgetConfig>.from(_effectiveLayout());
     if (!currentLayout.any((c) => c.id == id)) {
       currentLayout.add(DashboardWidgetConfig(id: id));
       settingsNotifier.updateDashboardLayout(currentLayout);
@@ -409,7 +420,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
 
   void _reorderWidget(String incomingId, String targetId) {
     final settingsNotifier = ref.read(settingsProvider.notifier);
-    final currentLayout = List<DashboardWidgetConfig>.from(ref.read(settingsProvider).dashboardLayout ?? []);
+    final currentLayout = List<DashboardWidgetConfig>.from(_effectiveLayout());
     
     final oldIndex = currentLayout.indexWhere((c) => c.id == incomingId);
     final newIndex = currentLayout.indexWhere((c) => c.id == targetId);
@@ -422,7 +433,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 
   void _showAddWidgetSheet() {
-    final layout = ref.read(settingsProvider).dashboardLayout ?? [];
+    final layout = _effectiveLayout();
     // Convert to List<String> for the sheet
     final currentIds = layout.map((c) => c.id).toList();
     

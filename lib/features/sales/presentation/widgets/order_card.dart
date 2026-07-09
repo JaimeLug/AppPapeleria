@@ -388,9 +388,18 @@ class OrderCard extends ConsumerWidget {
                     },
                     style: OutlinedButton.styleFrom(
                       foregroundColor: statusColor,
-                      side: BorderSide(color: statusColor),
+                      backgroundColor: statusColor.withValues(alpha: 0.06),
+                      side: BorderSide(color: statusColor.withValues(alpha: 0.4)),
                     ),
-                    child: Text('Estado: ${order.status}'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.circle, size: 10, color: statusColor),
+                        const SizedBox(width: 8),
+                        Text('Estado: ${order.status}'),
+                        const Icon(Icons.arrow_drop_down, size: 20),
+                      ],
+                    ),
                   ),
                 ),
             ],

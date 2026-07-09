@@ -116,7 +116,7 @@ class _ProductManagementPageState extends ConsumerState<ProductManagementPage> {
     return GridView.builder(
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
         maxCrossAxisExtent: 250,
-        childAspectRatio: 0.85,
+        mainAxisExtent: 200, // Altura fija ajustada al contenido (evita el hueco)
         crossAxisSpacing: 24,
         mainAxisSpacing: 24,
       ),
