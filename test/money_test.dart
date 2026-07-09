@@ -31,6 +31,20 @@ void main() {
       final total = roundMoney(precios.fold(0.0, (s, p) => s + p));
       expect(total, 25.34);
     });
+
+    test('maneja valores negativos (saldos/ajustes)', () {
+      expect(roundMoney(-19.99), -19.99);
+      expect(roundMoney(-0.1 - 0.2), -0.30);
+    });
+
+    test('maneja importes grandes sin perder centavos', () {
+      expect(roundMoney(1234567.894), 1234567.89);
+      expect(roundMoney(999999.996), 1000000.00);
+    });
+
+    test('un solo decimal se conserva', () {
+      expect(roundMoney(15.5), 15.50);
+    });
   });
 
   group('OrderItemEntity.total', () {
