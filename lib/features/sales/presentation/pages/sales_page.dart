@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../config/theme/app_theme.dart';
@@ -211,7 +212,7 @@ class _ProductItemCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '\$${product.basePrice.toStringAsFixed(0)}',
+                  '\$${product.basePrice.toStringAsFixed(2)}',
                   style: TextStyle(
                     color: Theme.of(context).primaryColor,
                     fontWeight: FontWeight.bold,
@@ -223,7 +224,7 @@ class _ProductItemCard extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 2),
                     child: Text(
-                      '+ \$${product.extraCost.toStringAsFixed(0)}',
+                      '+ \$${product.extraCost.toStringAsFixed(2)}',
                       style: const TextStyle(
                         color: Colors.grey,
                         fontSize: 11,
@@ -561,7 +562,8 @@ class _CartSummaryState extends ConsumerState<_CartSummary> {
                           flex: 1,
                           child: TextField(
                             controller: _extraAmountController,
-                            keyboardType: TextInputType.number,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
                             decoration: const InputDecoration(
                               labelText: 'Monto \$',
                               isDense: true,
@@ -604,7 +606,8 @@ class _CartSummaryState extends ConsumerState<_CartSummary> {
                 TextField(
                   controller: _advanceController,
                   enabled: !cartState.isFullyPaid,
-                  keyboardType: TextInputType.number,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
                   decoration: const InputDecoration(
                     labelText: 'Anticipo',
                     prefixText: '\$ ',
