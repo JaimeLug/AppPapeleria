@@ -29,55 +29,11 @@ class _SessionGateState extends ConsumerState<SessionGate> {
   Future<void> _reconcile() async {
     if (_handled) return;
     _handled = true;
-
-    final sync = ref.read(syncManagerProvider);
-    final pending = sync.countPendingLocalData();
-
-    // Sin datos locales pendientes: subimos por si algo quedó en cola y entramos.
-    if (pending == 0) {
-      unawaited(sync.syncPendingData());
-      return;
-    }
-
-    if (!mounted) return;
-
-    final choice = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Datos locales sin sincronizar'),
-        content: Text(
-          'Se encontraron $pending registro(s) guardados en este dispositivo '
-          'que aún no están en la nube.\n\n'
-          '¿Quieres subirlos a la nube o descartarlos?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop('discard'),
-            child: const Text('Descartar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop('upload'),
-            child: const Text('Subir a la nube'),
-          ),
-        ],
-      ),
-    );
-
-    if (choice == 'upload') {
-      await sync.syncPendingData();
-      _snack('Datos locales subidos a la nube.');
-    } else if (choice == 'discard') {
-      await sync.discardPendingLocalData();
-      _snack('Datos locales descartados.');
-    }
-  }
-
-  void _snack(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    // Ya con sesión iniciada, subimos en silencio cualquier dato local
+    // pendiente. El guard de sesión en syncPendingData evita los intentos sin
+    // autenticar (que fallaban por RLS y dejaban datos "colgados"), y así ya
+    // no aparece el diálogo recurrente de "datos no sincronizados".
+    unawaited(ref.read(syncManagerProvider).syncPendingData());
   }
 
   @override

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../providers/remote_repositories_providers.dart';
 import 'pending_delete_queue.dart';
@@ -55,6 +56,11 @@ class SyncManager {
   /// Es el guardado en tiempo real que se dispara al crear/editar y al
   /// recuperar conectividad.
   Future<void> syncPendingData() async {
+    // Sin sesión no se sincroniza: evita errores de RLS y que los registros
+    // queden "colgados" por intentos de subida sin autenticar (p. ej. la sync
+    // por conectividad que dispara al arrancar la app, antes del login).
+    if (Supabase.instance.client.auth.currentSession == null) return;
+
     // Si ya hay una sincronización en curso, en vez de descartar esta petición
     // marcamos que hay que volver a correr al terminar. Así una creación hecha
     // mientras se sincroniza no se queda sin subir.
@@ -87,6 +93,9 @@ class SyncManager {
   /// `isSynced`. Se usa al cerrar sesión como red de seguridad y para
   /// re-subir datos cuyo flag apunta a una base anterior.
   Future<void> forceSyncAll() async {
+    // Sin sesión no hay nada que subir de forma autenticada.
+    if (Supabase.instance.client.auth.currentSession == null) return;
+
     // Si hay una sincronización normal en curso, esperamos a que termine en
     // vez de saltarnos el guardado completo (crítico al cerrar sesión).
     while (_isSyncing) {
