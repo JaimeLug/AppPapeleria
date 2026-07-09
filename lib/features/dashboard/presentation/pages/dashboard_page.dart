@@ -32,6 +32,9 @@ class DashboardPage extends ConsumerStatefulWidget {
 
 class _DashboardPageState extends ConsumerState<DashboardPage> {
   int _selectedIndex = 0;
+
+  // Id de la tarjeta recién reordenada, para animar su "aterrizaje".
+  String? _recentlyMovedId;
                             // or imply it via DragTarget. But Draggable is now deep inside.
                             // To update FAB we need to know. 
                             // For now, FAB might not turn red unless we lift state.
@@ -333,12 +336,26 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       ),
     );
 
+    // Animación de "aterrizaje" para la tarjeta recién reordenada: cae con un
+    // pequeño rebote en su nueva posición en vez de aparecer de golpe.
+    final Widget animatedContent = config.id == _recentlyMovedId
+        ? TweenAnimationBuilder<double>(
+            key: ValueKey('settle_${config.id}'),
+            tween: Tween<double>(begin: 1.14, end: 1.0),
+            duration: const Duration(milliseconds: 420),
+            curve: Curves.easeOutBack,
+            builder: (context, scale, child) =>
+                Transform.scale(scale: scale, child: child),
+            child: widgetContent,
+          )
+        : widgetContent;
+
     // Target for DROPPING reordering
     return DragTarget<String>(
       onWillAcceptWithDetails: (details) => details.data != config.id,
       onAcceptWithDetails: (details) => _reorderWidget(details.data, config.id),
       builder: (context, candidateData, rejectedData) {
-         return widgetContent;
+         return animatedContent;
       },
     );
   }
@@ -429,6 +446,14 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
       final item = currentLayout.removeAt(oldIndex);
       currentLayout.insert(newIndex, item);
       settingsNotifier.updateDashboardLayout(currentLayout);
+
+      // Dispara la animación de "aterrizaje" en la tarjeta movida.
+      setState(() => _recentlyMovedId = incomingId);
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted && _recentlyMovedId == incomingId) {
+          setState(() => _recentlyMovedId = null);
+        }
+      });
     }
   }
 

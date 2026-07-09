@@ -1,5 +1,71 @@
 import 'package:flutter/material.dart';
 
+/// Feedback animado que se muestra bajo el cursor al arrastrar una tarjeta.
+/// Da una sensación de "agarre/levantar": un pop de escala con rebote suave
+/// y una sombra que crece, en vez de aparecer de golpe.
+class _DragFeedback extends StatefulWidget {
+  final Widget child;
+  const _DragFeedback({required this.child});
+
+  @override
+  State<_DragFeedback> createState() => _DragFeedbackState();
+}
+
+class _DragFeedbackState extends State<_DragFeedback>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+  late final Animation<double> _lift;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    )..forward();
+    _scale = Tween<double>(begin: 0.92, end: 1.06).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
+    _lift = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      child: widget.child,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scale.value,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.28 * _lift.value),
+                  blurRadius: 28 * _lift.value,
+                  offset: Offset(0, 14 * _lift.value),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: Opacity(opacity: 0.9, child: child),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class DashboardWidgetWrapper extends StatefulWidget {
   final Widget child;
   final String title;
@@ -141,22 +207,18 @@ class _DashboardWidgetWrapperState extends State<DashboardWidgetWrapper> {
                     widget.widgetId != null 
                     ? Draggable<String>(
                         data: widget.widgetId,
-                        feedback: Material(
-                          color: Colors.transparent,
-                          child: Opacity(
-                            opacity: 0.8,
-                            child: SizedBox(
-                              width: 240, 
-                              height: 180,
-                              child: DashboardWidgetWrapper(
-                                title: widget.title,
-                                isDragging: true, 
-                                backgroundColor: widget.backgroundColor,
-                                backgroundGradient: widget.backgroundGradient,
-                                overrideTextColor: widget.overrideTextColor,
-                                overrideIconColor: widget.overrideIconColor,
-                                child: widget.child,
-                              ),
+                        feedback: _DragFeedback(
+                          child: SizedBox(
+                            width: 240,
+                            height: 180,
+                            child: DashboardWidgetWrapper(
+                              title: widget.title,
+                              isDragging: true,
+                              backgroundColor: widget.backgroundColor,
+                              backgroundGradient: widget.backgroundGradient,
+                              overrideTextColor: widget.overrideTextColor,
+                              overrideIconColor: widget.overrideIconColor,
+                              child: widget.child,
                             ),
                           ),
                         ),
