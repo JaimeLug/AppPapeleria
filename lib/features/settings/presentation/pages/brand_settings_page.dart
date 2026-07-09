@@ -10,6 +10,7 @@ import '../providers/theme_provider.dart';
 import '../providers/settings_provider.dart';
 import '../../domain/models/brand_config_model.dart';
 import '../../../../config/theme/app_theme.dart';
+import '../../../../core/services/desktop_shortcut.dart';
 
 class BrandSettingsPage extends ConsumerStatefulWidget {
   const BrandSettingsPage({super.key});
@@ -82,6 +83,19 @@ class _BrandSettingsPageState extends ConsumerState<BrandSettingsPage> {
             const Text('Logo del Negocio', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             _buildLogoSection(),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _createShortcut,
+              icon: const Icon(Icons.add_to_home_screen),
+              label: const Text('Crear acceso directo con mi logo'),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text(
+                'Pone en tu escritorio un acceso directo a la app con el ícono de tu logo.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ),
             const SizedBox(height: 24),
             const Text('Nombre de la Aplicación', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
@@ -247,6 +261,26 @@ class _BrandSettingsPageState extends ConsumerState<BrandSettingsPage> {
     }
 
     setState(() => _logoBase64 = base64Encode(bytes));
+  }
+
+  /// Crea un acceso directo en el escritorio con el logo actual como ícono.
+  Future<void> _createShortcut() async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Creando acceso directo...'), duration: Duration(seconds: 1)),
+    );
+    final name = _nameController.text.trim();
+    final error = await createBrandDesktopShortcut(
+      appName: name.isEmpty ? 'Papelería Pro' : name,
+      logoBase64: _logoBase64,
+    );
+    if (!mounted) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(error ?? '¡Acceso directo creado en tu escritorio!'),
+        backgroundColor: error == null ? Colors.green : Colors.red,
+      ),
+    );
   }
 
   /// Extrae los colores dominantes del logo (o del logo por defecto) y ofrece
