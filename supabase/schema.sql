@@ -152,6 +152,41 @@ create index if not exists idx_incomes_date on public.incomes(date desc);
 
 
 -- ============================================================================
+-- updated_at AUTORITATIVO DEL SERVIDOR  (LWW por hora de llegada)
+-- ----------------------------------------------------------------------------
+-- La app envía updated_at con el reloj del cliente. Este trigger lo sobreescribe
+-- con now() del servidor en cada insert/update, de modo que el "último en
+-- escribir" lo decide el servidor y no el reloj (posiblemente desfasado) de cada
+-- computadora. Solo aplica a las tablas que tienen columna updated_at.
+-- ============================================================================
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'brand_settings','products','inventory_items','customers','orders','expenses','incomes'
+  ]
+  loop
+    execute format('drop trigger if exists trg_set_updated_at on public.%I;', t);
+    execute format(
+      'create trigger trg_set_updated_at
+         before insert or update on public.%I
+         for each row execute function public.set_updated_at();', t);
+  end loop;
+end $$;
+
+
+-- ============================================================================
 -- ROW LEVEL SECURITY
 -- ----------------------------------------------------------------------------
 -- Negocio único: cualquier usuario autenticado tiene acceso total.
