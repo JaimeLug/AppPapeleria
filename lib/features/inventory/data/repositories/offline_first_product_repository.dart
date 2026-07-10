@@ -4,15 +4,15 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../core/error/failures.dart';
 import '../../domain/entities/product.dart';
 import '../../domain/repositories/product_repository.dart';
+import '../../domain/repositories/remote_product_repository.dart';
 import '../models/product_model.dart';
-import 'supabase_product_repository.dart';
-import '../../../../core/services/sync_manager.dart';
+import '../../../../core/services/sync_trigger.dart';
 import '../../../../core/services/pending_delete_queue.dart';
 
 class OfflineFirstProductRepository implements ProductRepository {
-  final SupabaseProductRepository _remoteRepo;
+  final RemoteProductRepository _remoteRepo;
   final Box<ProductModel> _box;
-  final SyncManager _syncManager;
+  final SyncTrigger _syncManager;
 
   OfflineFirstProductRepository(this._remoteRepo, this._box, this._syncManager);
 

@@ -7,8 +7,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../providers/remote_repositories_providers.dart';
 import 'pending_delete_queue.dart';
+import 'sync_trigger.dart';
 import '../../features/sales/data/repositories/supabase_customer_repository.dart';
-import '../../features/inventory/data/repositories/supabase_product_repository.dart';
+import '../../features/inventory/domain/repositories/remote_product_repository.dart';
 import '../../features/sales/data/repositories/supabase_order_repository.dart';
 import '../../features/inventory/data/repositories/supabase_inventory_repository.dart';
 import '../../features/finance/data/repositories/supabase_finance_repository.dart';
@@ -21,9 +22,9 @@ import '../../features/inventory/data/models/stock_movement_model.dart';
 import '../../features/finance/data/models/expense_model.dart';
 import '../../features/finance/data/models/income_model.dart';
 
-class SyncManager {
+class SyncManager implements SyncTrigger {
   final SupabaseCustomerRepository _remoteCustomerRepo;
-  final SupabaseProductRepository _remoteProductRepo;
+  final RemoteProductRepository _remoteProductRepo;
   final SupabaseOrderRepository _remoteOrderRepo;
   final SupabaseInventoryRepository _remoteInventoryRepo;
   final SupabaseFinanceRepository _remoteFinanceRepo;
@@ -55,6 +56,7 @@ class SyncManager {
   /// Sube a la nube solo lo que está pendiente (`isSynced == false`).
   /// Es el guardado en tiempo real que se dispara al crear/editar y al
   /// recuperar conectividad.
+  @override
   Future<void> syncPendingData() async {
     // Sin sesión no se sincroniza: evita errores de RLS y que los registros
     // queden "colgados" por intentos de subida sin autenticar (p. ej. la sync
