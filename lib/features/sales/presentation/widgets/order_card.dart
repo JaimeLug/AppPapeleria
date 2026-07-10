@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../domain/entities/order.dart';
-import '../../../../core/services/pdf_service.dart';
-import '../../../settings/presentation/providers/settings_provider.dart';
-import '../../../settings/presentation/providers/theme_provider.dart';
 import '../providers/orders_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'order_details_dialog.dart';
+import 'order_payment_dialog.dart';
+import 'order_status_sheet.dart';
 
 class OrderCard extends ConsumerWidget {
   final OrderEntity order;
@@ -15,147 +15,25 @@ class OrderCard extends ConsumerWidget {
   final Function(double)? onAddPayment;
 
   const OrderCard({
-    super.key, 
-    required this.order, 
-    required this.onStatusChange, 
+    super.key,
+    required this.order,
+    required this.onStatusChange,
     this.onMarkDelivered,
     this.onLiquidateDebt,
     this.onAddPayment,
   });
 
-  Color _getStatusColor(String status) {
-    switch (status) {
-      case 'Pendiente':
-        return Colors.redAccent;
-      case 'Diseño':
-        return Colors.purpleAccent;
-      case 'Armando':
-        return Colors.orangeAccent;
-      case 'Entregado':
-      case 'Terminado': // Legacy support
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  void _showOrderDetails(BuildContext context, WidgetRef ref) {
+  void _showOrderDetails(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.receipt_long, color: Theme.of(context).primaryColor),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Detalle del Pedido',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _DetailRow(label: 'Cliente', value: order.customerName),
-              const SizedBox(height: 8),
-              _DetailRow(
-                label: 'Fecha de Entrega',
-                value: '${DateFormat('dd/MM/yyyy').format(order.deliveryDate)} a las ${DateFormat('HH:mm').format(order.deliveryDate)}',
-              ),
-              const SizedBox(height: 8),
-              _DetailRow(
-                label: 'Total',
-                value: '\$${order.totalPrice.toStringAsFixed(2)}',
-              ),
-              const Divider(height: 24),
-              const Text(
-                'Productos:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              const SizedBox(height: 12),
-              ...order.items.map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '${item.quantity}x',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.productName,
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          if (item.notes != null && item.notes!.isNotEmpty)
-                            Text(
-                              item.notes!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      '\$${item.total.toStringAsFixed(2)}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              )),
-            ],
-          ),
-        ),
-        actions: [
-          ElevatedButton.icon(
-            onPressed: () {
-              final settings = ref.read(settingsProvider);
-              final logo = ref.read(currentBrandConfigProvider).logoBase64;
-              PdfService().generateAndPrintReceipt(order, settings, logoBase64: logo);
-            },
-            icon: const Icon(Icons.print),
-            label: const Text('Reimprimir Ticket'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.secondary,
-              foregroundColor: Colors.white,
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
-          ),
-        ],
-      ),
+      builder: (context) => OrderDetailsDialog(order: order),
     );
   }
-
 
   void _showPaymentDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => _PaymentDialogBody(
+      builder: (context) => OrderPaymentDialog(
         order: order,
         onAddPayment: onAddPayment,
       ),
@@ -216,12 +94,12 @@ class OrderCard extends ConsumerWidget {
     final hasDebt = order.pendingBalance > 0.01;
     final isUrgent = order.deliveryDate.difference(DateTime.now()).inDays <= 1 && order.deliveryStatus != 'delivered' && order.status != 'Entregado';
     final isDelivered = order.deliveryStatus == 'delivered' || order.status == 'Entregado';
-    final statusColor = _getStatusColor(order.status);
+    final statusColor = orderStatusColor(order.status);
 
     String statusChipText;
     Color statusChipColor;
     Color statusChipBgColor;
-    
+
     if (isDelivered && !hasDebt) {
       statusChipText = 'TERMINADO';
       statusChipColor = Colors.green;
@@ -237,7 +115,7 @@ class OrderCard extends ConsumerWidget {
     }
 
     return InkWell(
-      onTap: () => _showOrderDetails(context, ref),
+      onTap: () => _showOrderDetails(context),
       borderRadius: BorderRadius.circular(12),
       child: Card(
         elevation: 2,
@@ -329,63 +207,13 @@ class OrderCard extends ConsumerWidget {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
-                    onPressed: () {
-                      showModalBottomSheet(
-                        context: context,
-                        builder: (context) => Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            'Pendiente',
-                            'Diseño',
-                            'Armando',
-                            'Entregado',
-                          ].map((status) => ListTile(
-                            title: Text(status),
-                            leading: Icon(Icons.circle, color: _getStatusColor(status), size: 16),
-                            onTap: () {
-                              Navigator.pop(context);
-                              if (status == 'Entregado') {
-                                if (order.pendingBalance > 0.01) {
-                                  // Ask to pay debt
-                                  showDialog(
-                                    context: context, 
-                                    builder: (context) => AlertDialog(
-                                      title: const Text('Entrega con Saldo Pendiente'),
-                                      content: Text('El pedido tiene un saldo pendiente de \$${order.pendingBalance.toStringAsFixed(2)}.\n\n¿Deseas marcarlo como PAGADO y ENTREGADO?'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () {
-                                            Navigator.pop(context);
-                                            // Mark delivered only (keep debt)
-                                            if (onMarkDelivered != null) onMarkDelivered!();
-                                          },
-                                          child: const Text('Solo Entregar (Mantiene Deuda)'),
-                                        ),
-                                        ElevatedButton(
-                                          onPressed: () {
-                                            Navigator.pop(context);
-                                            // Liquidate debt AND mark delivered
-                                            if (onLiquidateDebt != null) onLiquidateDebt!();
-                                            if (onMarkDelivered != null) onMarkDelivered!();
-                                          },
-                                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                                          child: const Text('Pagado y Entregado'),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                } else {
-                                  // No debt, just deliver
-                                  if (onMarkDelivered != null) onMarkDelivered!();
-                                }
-                              } else {
-                                onStatusChange(status);
-                              }
-                            },
-                          )).toList(),
-                        ),
-                      );
-                    },
+                    onPressed: () => showOrderStatusSheet(
+                      context,
+                      order: order,
+                      onStatusChange: onStatusChange,
+                      onMarkDelivered: onMarkDelivered,
+                      onLiquidateDebt: onLiquidateDebt,
+                    ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: statusColor,
                       backgroundColor: statusColor.withValues(alpha: 0.06),
@@ -406,166 +234,6 @@ class OrderCard extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _PaymentDialogBody extends StatefulWidget {
-  final OrderEntity order;
-  final Function(double)? onAddPayment;
-
-  const _PaymentDialogBody({
-    required this.order,
-    this.onAddPayment,
-  });
-
-  @override
-  State<_PaymentDialogBody> createState() => _PaymentDialogBodyState();
-}
-
-class _PaymentDialogBodyState extends State<_PaymentDialogBody> {
-  late final TextEditingController amountController;
-
-  @override
-  void initState() {
-    super.initState();
-    amountController = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    amountController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: Row(
-        children: [
-          const Icon(Icons.monetization_on, color: Colors.amber),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text(
-              'Registrar Abono',
-              style: TextStyle(fontSize: 18),
-            ),
-          ),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Cliente: ${widget.order.customerName}',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.orange.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Deuda Actual:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  '\$${widget.order.pendingBalance.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.orange,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: amountController,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: 'Cantidad a Abonar',
-              prefixText: '\$ ',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              suffixIcon: TextButton(
-                onPressed: () {
-                  amountController.text = widget.order.pendingBalance.toStringAsFixed(2);
-                },
-                child: const Text(
-                  'Liquidar\nTodo',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 11),
-                ),
-              ),
-            ),
-            autofocus: true,
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton.icon(
-          onPressed: () {
-            final amount = double.tryParse(amountController.text);
-            if (amount == null || amount <= 0) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Ingresa una cantidad válida')),
-              );
-              return;
-            }
-            if (amount > widget.order.pendingBalance) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('El abono no puede ser mayor a la deuda (\$${widget.order.pendingBalance.toStringAsFixed(2)})'),
-                ),
-              );
-              return;
-            }
-            Navigator.pop(context);
-            if (widget.onAddPayment != null) {
-              widget.onAddPayment!(amount);
-            }
-          },
-          icon: const Icon(Icons.check),
-          label: const Text('Abonar'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.amber,
-            foregroundColor: Colors.white,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _DetailRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w500)),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
-      ],
     );
   }
 }

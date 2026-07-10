@@ -4,6 +4,7 @@ import 'package:app_papeleria/features/settings/presentation/providers/settings_
 import 'package:app_papeleria/features/settings/presentation/widgets/category_editor_dialog.dart';
 import 'package:app_papeleria/features/settings/presentation/widgets/customer_manager_dialog.dart';
 import 'package:app_papeleria/features/settings/presentation/pages/brand_settings_page.dart';
+import 'package:app_papeleria/features/settings/presentation/widgets/settings_dialogs.dart';
 import 'package:app_papeleria/features/auth/presentation/logout_helper.dart';
 
 class SettingsPage extends ConsumerStatefulWidget {
@@ -410,7 +411,7 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
   void _showPinDialog(BuildContext context, SettingsNotifier notifier, String? currentPin) {
     showDialog(
       context: context,
-      builder: (context) => _PinDialogBody(
+      builder: (context) => PinDialog(
         notifier: notifier,
         currentPin: currentPin,
         onRemove: () {
@@ -420,221 +421,18 @@ class _SettingsPageState extends ConsumerState<SettingsPage> {
       ),
     );
   }
-  
+
   void _showRemovePinDialog(BuildContext context, SettingsNotifier notifier) {
     showDialog(
       context: context,
-      builder: (context) => _RemovePinDialogBody(notifier: notifier),
+      builder: (context) => RemovePinDialog(notifier: notifier),
     );
   }
 
   void _showResetDialog(BuildContext context, SettingsNotifier notifier) {
     showDialog(
       context: context,
-      builder: (context) => _ResetDialogBody(notifier: notifier),
-    );
-  }
-
-}
-
-class _PinDialogBody extends StatefulWidget {
-  final SettingsNotifier notifier;
-  final String? currentPin;
-  final VoidCallback onRemove;
-
-  const _PinDialogBody({required this.notifier, this.currentPin, required this.onRemove});
-
-  @override
-  State<_PinDialogBody> createState() => _PinDialogBodyState();
-}
-
-class _PinDialogBodyState extends State<_PinDialogBody> {
-  late final TextEditingController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    bool isEditing = widget.currentPin != null && widget.currentPin!.isNotEmpty;
-
-    return AlertDialog(
-      title: Text(isEditing ? 'Gestionar PIN' : 'Establecer PIN'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-           if (isEditing) ...[
-             const Text('Acciones disponibles:'),
-             const SizedBox(height: 16),
-             SizedBox(
-               width: double.infinity,
-               child: OutlinedButton(
-                 onPressed: widget.onRemove,
-                 style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                 child: const Text('Eliminar PIN'),
-               ),
-             ),
-             const SizedBox(height: 16),
-             const Text('O cambiar PIN:'),
-           ],
-          TextField(
-            controller: controller,
-            keyboardType: TextInputType.number,
-            maxLength: 4,
-            obscureText: true,
-            decoration: const InputDecoration(
-              labelText: 'Nuevo PIN (4 dígitos)',
-              border: OutlineInputBorder(),
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-        ElevatedButton(
-          onPressed: () {
-            if (controller.text.length == 4) {
-              widget.notifier.setSecurityPin(controller.text);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Actualizado')));
-            }
-          },
-          child: const Text('Guardar'),
-        ),
-      ],
-    );
-  }
-}
-
-class _RemovePinDialogBody extends StatefulWidget {
-  final SettingsNotifier notifier;
-
-  const _RemovePinDialogBody({required this.notifier});
-
-  @override
-  State<_RemovePinDialogBody> createState() => _RemovePinDialogBodyState();
-}
-
-class _RemovePinDialogBodyState extends State<_RemovePinDialogBody> {
-  late final TextEditingController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Eliminar PIN'),
-      content: TextField(
-        controller: controller,
-        keyboardType: TextInputType.number,
-        maxLength: 4,
-        obscureText: true,
-        decoration: const InputDecoration(
-          labelText: 'Ingresa el PIN actual',
-          border: OutlineInputBorder(),
-        ),
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-        ElevatedButton(
-           style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          onPressed: () {
-             try {
-               widget.notifier.removeSecurityPin(controller.text);
-               Navigator.pop(context);
-               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Eliminado')));
-             } catch (e) {
-               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Incorrecto')));
-             }
-          },
-          child: const Text('Eliminar'),
-        ),
-      ],
-    );
-  }
-}
-
-class _ResetDialogBody extends StatefulWidget {
-  final SettingsNotifier notifier;
-
-  const _ResetDialogBody({required this.notifier});
-
-  @override
-  State<_ResetDialogBody> createState() => _ResetDialogBodyState();
-}
-
-class _ResetDialogBodyState extends State<_ResetDialogBody> {
-  late final TextEditingController pinController;
-
-  @override
-  void initState() {
-    super.initState();
-    pinController = TextEditingController();
-  }
-
-  @override
-  void dispose() {
-    pinController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Reset de Fábrica', style: TextStyle(color: Colors.red)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('Esta acción BORRARÁ TODOS LOS PEDIDOS, CLIENTES Y DATOS. No se puede deshacer.'),
-          const SizedBox(height: 16),
-          TextField(
-            controller: pinController,
-            decoration: const InputDecoration(
-              labelText: 'PIN de Desarrollador',
-              border: OutlineInputBorder(),
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-        ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-          onPressed: () async {
-            try {
-              await widget.notifier.factoryReset(pinController.text);
-              if (context.mounted) {
-                Navigator.pop(context); // Close dialog
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sistema restablecido de fábrica')));
-              }
-            } catch (e) {
-              if (context.mounted) {
-                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Incorrecto. Acción cancelada.')));
-              }
-            }
-          },
-          child: const Text('BORRAR TODO', style: TextStyle(color: Colors.white)),
-        ),
-      ],
+      builder: (context) => ResetDialog(notifier: notifier),
     );
   }
 }
