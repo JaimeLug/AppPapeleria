@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter/foundation.dart';
 import '../../domain/repositories/settings_repository.dart';
 import '../../presentation/providers/settings_provider.dart';
 
@@ -55,8 +54,12 @@ class HiveSettingsRepository implements SettingsRepository {
     final expensesBox = Hive.box<ExpenseModel>('expenses');
     final incomesBox = Hive.box<IncomeModel>('incomes');
 
+    // El PIN de finanzas no se incluye en el backup exportado (que se guarda
+    // como JSON en claro fuera de la app).
+    final settingsMap = currentSettings.toMap()..remove('securityPin');
+
     final allData = {
-      'settings': currentSettings.toMap(),
+      'settings': settingsMap,
       'customers': customersBox.values.map((e) => e.toJson()).toList(),
       'orders': ordersBox.values.map((e) => e.toJson()).toList(),
       'products': productsBox.values.map((e) => e.toJson()).toList(),
@@ -108,19 +111,6 @@ class HiveSettingsRepository implements SettingsRepository {
       if (data['settings'] != null) {
         await _settingsBox.put('appSettings', data['settings']);
       }
-    }
-  }
-
-  @override
-  Future<void> performAdvancedSync(String mode, AppSettings settings) async {
-    // googleService and sheetId were previously used here for Google Sheets sync.
-
-    if (mode == 'incremental_export' || mode == 'overwrite_cloud') {
-      // Google Sheets sync is deprecated in favor of Supabase. 
-      // This section should be migrated to Supabase bulk operations if needed.
-      debugPrint('LOG: Advanced Sync (Sheets) is no longer supported.');
-    } else if (mode == 'merge_import' || mode == 'total_restore') {
-      debugPrint('LOG: Advanced Sync (Sheets) is no longer supported.');
     }
   }
 

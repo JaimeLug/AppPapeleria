@@ -13,7 +13,4 @@ abstract class SettingsRepository {
   
   // Stats
   Future<Map<String, int>> getDatabaseStats();
-
-  // Advanced Sync
-  Future<void> performAdvancedSync(String mode, AppSettings settings);
 }

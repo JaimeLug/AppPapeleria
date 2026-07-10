@@ -19,13 +19,6 @@ class AppSettings {
   final String dashboardWelcomeTitle;
   final String dashboardWelcomeSubtitle;
   
-  // Google Cloud Integration
-  final String? googleClientId;
-  final String? googleClientSecret;
-  final String? googleSheetId;
-  final bool syncSheetsEnabled;
-  final bool syncCalendarEnabled;
-  final Map<String, String> dashboardTitles;
   final List<String> productCategories;
   
   // Phase 19.2: Changed from List<String> to List<DashboardWidgetConfig>
@@ -44,16 +37,6 @@ class AppSettings {
     this.securityPin,
     this.dashboardWelcomeTitle = '¡Hola, crea magia hoy! ✨',
     this.dashboardWelcomeSubtitle = 'Resumen de tu papelería creativa',
-    this.googleClientId,
-    this.googleClientSecret,
-    this.googleSheetId = '1nDpb3WlAhD-XtIvx_CPuM87UlDntvhY1NxCr_XapM8w',
-    this.syncSheetsEnabled = false,
-    this.syncCalendarEnabled = false,
-    this.dashboardTitles = const {
-      'orders': 'Próximas Entregas',
-      'metrics': 'Resumen del Negocio',
-      'summary': 'Estado de Pedidos',
-    },
     this.productCategories = const [],
     this.dashboardLayout,
     this.quickNoteContent = '',
@@ -70,12 +53,6 @@ class AppSettings {
     String? securityPin,
     String? dashboardWelcomeTitle,
     String? dashboardWelcomeSubtitle,
-    String? googleClientId,
-    String? googleClientSecret,
-    String? googleSheetId,
-    bool? syncSheetsEnabled,
-    bool? syncCalendarEnabled,
-    Map<String, String>? dashboardTitles,
     List<String>? productCategories,
     List<DashboardWidgetConfig>? dashboardLayout,
     String? quickNoteContent,
@@ -91,12 +68,6 @@ class AppSettings {
       securityPin: securityPin ?? this.securityPin,
       dashboardWelcomeTitle: dashboardWelcomeTitle ?? this.dashboardWelcomeTitle,
       dashboardWelcomeSubtitle: dashboardWelcomeSubtitle ?? this.dashboardWelcomeSubtitle,
-      googleClientId: googleClientId ?? this.googleClientId,
-      googleClientSecret: googleClientSecret ?? this.googleClientSecret,
-      googleSheetId: googleSheetId ?? this.googleSheetId,
-      syncSheetsEnabled: syncSheetsEnabled ?? this.syncSheetsEnabled,
-      syncCalendarEnabled: syncCalendarEnabled ?? this.syncCalendarEnabled,
-      dashboardTitles: dashboardTitles ?? this.dashboardTitles,
       productCategories: productCategories ?? this.productCategories,
       dashboardLayout: dashboardLayout ?? this.dashboardLayout,
       quickNoteContent: quickNoteContent ?? this.quickNoteContent,
@@ -115,12 +86,6 @@ class AppSettings {
       'securityPin': securityPin,
       'dashboardWelcomeTitle': dashboardWelcomeTitle,
       'dashboardWelcomeSubtitle': dashboardWelcomeSubtitle,
-      'googleClientId': googleClientId,
-      'googleClientSecret': googleClientSecret,
-      'googleSheetId': googleSheetId,
-      'syncSheetsEnabled': syncSheetsEnabled,
-      'syncCalendarEnabled': syncCalendarEnabled,
-      'dashboardTitles': dashboardTitles,
       'productCategories': productCategories,
       'dashboardLayout': dashboardLayout?.map((e) => e.toMap()).toList(),
       'quickNoteContent': quickNoteContent,
@@ -156,16 +121,6 @@ class AppSettings {
       securityPin: map['securityPin'],
       dashboardWelcomeTitle: map['dashboardWelcomeTitle'] ?? '¡Hola, crea magia hoy! ✨',
       dashboardWelcomeSubtitle: map['dashboardWelcomeSubtitle'] ?? 'Resumen de tu papelería creativa',
-      googleClientId: map['googleClientId'],
-      googleClientSecret: map['googleClientSecret'],
-      googleSheetId: map['googleSheetId'] ?? '1nDpb3WlAhD-XtIvx_CPuM87UlDntvhY1NxCr_XapM8w',
-      syncSheetsEnabled: map['syncSheetsEnabled'] ?? false,
-      syncCalendarEnabled: map['syncCalendarEnabled'] ?? false,
-      dashboardTitles: map['dashboardTitles'] != null ? Map<String, String>.from(map['dashboardTitles']) : const {
-        'orders': 'Próximas Entregas',
-        'metrics': 'Resumen del Negocio',
-        'summary': 'Estado de Pedidos',
-      },
       productCategories: map['productCategories'] != null ? List<String>.from(map['productCategories']) : const [],
       dashboardLayout: layout,
       quickNoteContent: map['quickNoteContent'] ?? '',
@@ -233,29 +188,6 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     }
   }
 
-  // Google Cloud Actions
-  void updateGoogleConfig({
-    String? clientId,
-    String? clientSecret,
-    String? sheetId,
-    bool? syncSheets,
-    bool? syncCalendar,
-  }) {
-    state = state.copyWith(
-      googleClientId: clientId,
-      googleClientSecret: clientSecret,
-      googleSheetId: sheetId,
-      syncSheetsEnabled: syncSheets,
-      syncCalendarEnabled: syncCalendar,
-    );
-    _saveSettings();
-  }
-  
-  void updateDashboardTitles(Map<String, String> titles) {
-    state = state.copyWith(dashboardTitles: titles);
-    _saveSettings();
-  }
-
   void updateDashboardWelcome({String? title, String? subtitle}) {
     state = state.copyWith(
       dashboardWelcomeTitle: title,
@@ -279,10 +211,6 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       ..remove(categoryName);
     state = state.copyWith(productCategories: updatedCategories);
     await _saveSettings();
-  }
-
-  Future<void> performAdvancedSync(String mode) async {
-    await _repository.performAdvancedSync(mode, state);
   }
 
   Future<void> exportBackup() async {

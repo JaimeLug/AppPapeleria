@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import 'package:hive/hive.dart';
@@ -189,7 +188,10 @@ class CartNotifier extends StateNotifier<CartState> {
 
   void setAdvancePayment(double amount) {
     if (!state.isFullyPaid) {
-      state = state.copyWith(advancePayment: amount);
+      // Acota el anticipo a [0, total]: nunca negativo ni mayor que el total
+      // (evitaría un saldo pendiente negativo y marcar el pedido como pagado).
+      final clamped = amount.clamp(0.0, state.total).toDouble();
+      state = state.copyWith(advancePayment: clamped);
     }
   }
   
@@ -225,17 +227,14 @@ class CartNotifier extends StateNotifier<CartState> {
   }
 
   Future<void> confirmSale(AppSettings settings, {String? logoBase64}) async {
-    debugPrint('LOG: Inicio de venta...');
     state = state.copyWith(isLoading: true, errorMessage: null, isSuccess: false);
 
     // 1. Validation
     if (state.items.isEmpty) {
-      debugPrint('LOG: Error - Carrito vacío');
       state = state.copyWith(isLoading: false, errorMessage: 'El carrito está vacío');
       return;
     }
     if (state.customerName.trim().isEmpty) {
-       debugPrint('LOG: Error - Falta nombre de cliente');
        state = state.copyWith(isLoading: false, errorMessage: 'Debes ingresar el nombre del cliente');
        return;
     }
@@ -270,40 +269,28 @@ class CartNotifier extends StateNotifier<CartState> {
     );
 
     try {
-      // Paso 1: Guardar en Hive (Critical)
-      debugPrint('LOG: Intentando guardar pedido en Hive...');
-      // Ensure box is open just in case, though main should handle it.
+      // Guardar en Hive es lo crítico. Aseguramos que la caja esté abierta
+      // (main normalmente ya lo hizo).
       if (!Hive.isBoxOpen('orders')) {
-         debugPrint('LOG: Orders box not open, opening now...');
          await Hive.openBox<OrderModel>('orders');
       }
 
       final result = await repository.addOrder(order);
-      
+
       await result.fold(
         (failure) async {
-          debugPrint('LOG: Error al guardar en Hive: ${failure.message}');
           state = state.copyWith(isLoading: false, errorMessage: 'Error al guardar: ${failure.message}');
         },
         (syncSuccess) async {
-           debugPrint('LOG: Pedido guardado con éxito. ID: ${order.id}. Synced: $syncSuccess');
-           
-           // Paso 3: PDF (Opcional/Riesgoso)
+           // PDF opcional: si falla, el pedido ya quedó guardado.
            try {
-              debugPrint('LOG: Intentando generar PDF...');
               final pdfService = PdfService();
               await pdfService.generateAndPrintReceipt(order, settings, logoBase64: logoBase64);
-              debugPrint('LOG: PDF generado correctamente');
-           } catch (e) {
-              debugPrint('LOG: Error generando PDF: $e');
-              // Non-critical error, order is saved.
-              // We could warn, but sync status is more important.
+           } catch (_) {
+              // Error no crítico; el pedido está guardado.
            }
 
-           clearCart(); 
-           // manually set success state to show snackbar
-           // We can pass syncSuccess via errorMessage hack or a new field, 
-           // but simpler to just use errorMessage for "Warning" if sync failed.
+           clearCart();
            if (syncSuccess) {
              state = const CartState(isSuccess: true);
            } else {
@@ -312,7 +299,6 @@ class CartNotifier extends StateNotifier<CartState> {
         },
       );
     } catch (e) {
-      debugPrint('LOG: Excepción no controlada en confirmSale: $e');
        state = state.copyWith(isLoading: false, errorMessage: 'Error crítico: $e');
     }
   }

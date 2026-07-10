@@ -22,16 +22,19 @@ class PinDialog extends StatefulWidget {
 
 class _PinDialogState extends State<PinDialog> {
   late final TextEditingController controller;
+  late final TextEditingController currentController;
 
   @override
   void initState() {
     super.initState();
     controller = TextEditingController();
+    currentController = TextEditingController();
   }
 
   @override
   void dispose() {
     controller.dispose();
+    currentController.dispose();
     super.dispose();
   }
 
@@ -57,6 +60,17 @@ class _PinDialogState extends State<PinDialog> {
             ),
             const SizedBox(height: 16),
             const Text('O cambiar PIN:'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: currentController,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'PIN actual',
+                border: OutlineInputBorder(),
+              ),
+            ),
           ],
           TextField(
             controller: controller,
@@ -74,11 +88,17 @@ class _PinDialogState extends State<PinDialog> {
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
         ElevatedButton(
           onPressed: () {
-            if (controller.text.length == 4) {
-              widget.notifier.setSecurityPin(controller.text);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Actualizado')));
+            if (controller.text.length != 4) return;
+            // Al cambiar un PIN existente, hay que introducir el PIN actual.
+            if (isEditing && currentController.text != widget.currentPin) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('PIN actual incorrecto')),
+              );
+              return;
             }
+            widget.notifier.setSecurityPin(controller.text);
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN Actualizado')));
           },
           child: const Text('Guardar'),
         ),
