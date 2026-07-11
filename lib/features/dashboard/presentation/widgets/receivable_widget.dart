@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/dashboard_provider.dart';
+import '../providers/dashboard_palette_provider.dart';
 import '../utils/dashboard_constants.dart';
 import 'dashboard_widget_wrapper.dart';
 
@@ -22,7 +23,7 @@ class ReceivableWidget extends ConsumerWidget {
       onRemove: onRemove,
       onResize: onResize,
       onResizeHeight: onResizeHeight,
-      backgroundColor: Colors.orange, // Full Color
+      backgroundColor: ref.watch(dashboardPaletteProvider).receivable, // Full Color
       widgetId: DashboardWidgetIds.accountsReceivable,
       child: statsAsync.when(
         data: (stats) => Center(

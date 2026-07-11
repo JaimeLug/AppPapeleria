@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/dashboard_provider.dart';
+import '../providers/dashboard_palette_provider.dart';
 import '../utils/dashboard_constants.dart';
 import 'dashboard_widget_wrapper.dart';
 
@@ -19,7 +20,8 @@ class PendingDeliveriesWidget extends ConsumerWidget {
     return statsAsync.when(
       data: (stats) {
         final hasUrgent = stats.urgentOrdersCount > 0;
-        final color = hasUrgent ? Colors.redAccent : Colors.blueGrey;
+        final palette = ref.watch(dashboardPaletteProvider);
+        final color = hasUrgent ? palette.negative : palette.neutral;
 
         return DashboardWidgetWrapper(
           title: 'Por Entregar',

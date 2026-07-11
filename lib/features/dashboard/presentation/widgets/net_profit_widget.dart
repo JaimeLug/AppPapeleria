@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/dashboard_provider.dart';
+import '../providers/dashboard_palette_provider.dart';
 import '../utils/dashboard_constants.dart';
 import 'dashboard_widget_wrapper.dart';
 
@@ -19,14 +20,15 @@ class NetProfitWidget extends ConsumerWidget {
     return statsAsync.when(
       data: (stats) {
         final profit = stats.netProfit;
-        Color color = Colors.grey;
+        final palette = ref.watch(dashboardPaletteProvider);
+        Color color = palette.neutral;
         IconData icon = Icons.trending_flat;
-        
+
         if (profit > 0) {
-          color = Colors.green;
+          color = palette.income;
           icon = Icons.trending_up;
         } else if (profit < 0) {
-          color = Colors.red;
+          color = palette.negative;
           icon = Icons.trending_down;
         }
 

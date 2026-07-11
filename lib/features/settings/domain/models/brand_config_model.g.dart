@@ -24,13 +24,19 @@ class BrandConfigModelAdapter extends TypeAdapter<BrandConfigModel> {
       logoBase64: fields[4] as String?,
       backgroundColorHex: fields[5] as int?,
       surfaceColorHex: fields[6] as int?,
+      sidebarColorHex: fields[7] as int?,
+      dashReceivableColorHex: fields[8] as int?,
+      dashIncomeColorHex: fields[9] as int?,
+      dashExpenseColorHex: fields[10] as int?,
+      dashNeutralColorHex: fields[11] as int?,
+      dashNegativeColorHex: fields[12] as int?,
     );
   }
 
   @override
   void write(BinaryWriter writer, BrandConfigModel obj) {
     writer
-      ..writeByte(7)
+      ..writeByte(13)
       ..writeByte(0)
       ..write(obj.appName)
       ..writeByte(1)
@@ -44,7 +50,19 @@ class BrandConfigModelAdapter extends TypeAdapter<BrandConfigModel> {
       ..writeByte(5)
       ..write(obj.backgroundColorHex)
       ..writeByte(6)
-      ..write(obj.surfaceColorHex);
+      ..write(obj.surfaceColorHex)
+      ..writeByte(7)
+      ..write(obj.sidebarColorHex)
+      ..writeByte(8)
+      ..write(obj.dashReceivableColorHex)
+      ..writeByte(9)
+      ..write(obj.dashIncomeColorHex)
+      ..writeByte(10)
+      ..write(obj.dashExpenseColorHex)
+      ..writeByte(11)
+      ..write(obj.dashNeutralColorHex)
+      ..writeByte(12)
+      ..write(obj.dashNegativeColorHex);
   }
 
   @override

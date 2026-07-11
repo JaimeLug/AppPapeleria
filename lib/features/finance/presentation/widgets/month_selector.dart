@@ -23,7 +23,7 @@ class MonthSelector extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: isDarkMode ? const Color(0xFF2C2C2C) : Colors.white,
+        color: isDarkMode ? AppTheme.darkCard : Colors.white,
         borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(

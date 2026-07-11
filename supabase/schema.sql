@@ -32,6 +32,13 @@ create table if not exists public.brand_settings (
 alter table public.brand_settings add column if not exists logo_base64 text;
 alter table public.brand_settings add column if not exists background_color_hex bigint;
 alter table public.brand_settings add column if not exists surface_color_hex bigint;
+-- Slots de color del rediseño 2026 (null = default del tema):
+alter table public.brand_settings add column if not exists sidebar_color_hex bigint;
+alter table public.brand_settings add column if not exists dash_receivable_color_hex bigint;
+alter table public.brand_settings add column if not exists dash_income_color_hex bigint;
+alter table public.brand_settings add column if not exists dash_expense_color_hex bigint;
+alter table public.brand_settings add column if not exists dash_neutral_color_hex bigint;
+alter table public.brand_settings add column if not exists dash_negative_color_hex bigint;
 
 -- ------------------------------------------------------------------
 -- 2. products  (catálogo de venta)

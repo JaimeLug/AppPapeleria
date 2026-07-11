@@ -15,8 +15,8 @@ class OfflineFirstBrandRepository {
     if (_box.isEmpty) {
       return BrandConfigModel(
         appName: 'Papelería Pro',
-        primaryColorHex: 0xFF8E24AA, // Vibrant Purple
-        accentColorHex: 0xFFBA68C8,
+        primaryColorHex: 0xFFC4571F, // Terracota (rediseño 2026)
+        accentColorHex: 0xFF1E7A4D, // Verde
         updatedAt: DateTime.now(),
       );
     }

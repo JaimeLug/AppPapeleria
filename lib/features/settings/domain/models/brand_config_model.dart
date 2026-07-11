@@ -29,6 +29,32 @@ class BrandConfigModel extends HiveObject {
   @HiveField(6)
   int? surfaceColorHex;
 
+  /// Color del menú lateral. Null = café oscuro del tema.
+  @HiveField(7)
+  int? sidebarColorHex;
+
+  // --- Colores de las tarjetas del dashboard (null = paleta por defecto) ---
+
+  /// Tarjeta "Por Cobrar". Null = ocre.
+  @HiveField(8)
+  int? dashReceivableColorHex;
+
+  /// Tarjetas de ingresos/utilidad positiva. Null = verde.
+  @HiveField(9)
+  int? dashIncomeColorHex;
+
+  /// Tarjeta "Gastos del Mes". Null = naranja quemado.
+  @HiveField(10)
+  int? dashExpenseColorHex;
+
+  /// Tarjetas neutras (entregas sin urgencia, utilidad en cero). Null = azul pizarra.
+  @HiveField(11)
+  int? dashNeutralColorHex;
+
+  /// Estados negativos (pérdida, entregas urgentes). Null = rojo ladrillo.
+  @HiveField(12)
+  int? dashNegativeColorHex;
+
   BrandConfigModel({
     required this.appName,
     required this.primaryColorHex,
@@ -37,6 +63,12 @@ class BrandConfigModel extends HiveObject {
     this.logoBase64,
     this.backgroundColorHex,
     this.surfaceColorHex,
+    this.sidebarColorHex,
+    this.dashReceivableColorHex,
+    this.dashIncomeColorHex,
+    this.dashExpenseColorHex,
+    this.dashNeutralColorHex,
+    this.dashNegativeColorHex,
   });
 
   factory BrandConfigModel.fromJson(Map<String, dynamic> json) {
@@ -48,6 +80,12 @@ class BrandConfigModel extends HiveObject {
       logoBase64: json['logo_base64'] as String?,
       backgroundColorHex: (json['background_color_hex'] as num?)?.toInt(),
       surfaceColorHex: (json['surface_color_hex'] as num?)?.toInt(),
+      sidebarColorHex: (json['sidebar_color_hex'] as num?)?.toInt(),
+      dashReceivableColorHex: (json['dash_receivable_color_hex'] as num?)?.toInt(),
+      dashIncomeColorHex: (json['dash_income_color_hex'] as num?)?.toInt(),
+      dashExpenseColorHex: (json['dash_expense_color_hex'] as num?)?.toInt(),
+      dashNeutralColorHex: (json['dash_neutral_color_hex'] as num?)?.toInt(),
+      dashNegativeColorHex: (json['dash_negative_color_hex'] as num?)?.toInt(),
     );
   }
 
@@ -60,6 +98,12 @@ class BrandConfigModel extends HiveObject {
       'logo_base64': logoBase64,
       'background_color_hex': backgroundColorHex,
       'surface_color_hex': surfaceColorHex,
+      'sidebar_color_hex': sidebarColorHex,
+      'dash_receivable_color_hex': dashReceivableColorHex,
+      'dash_income_color_hex': dashIncomeColorHex,
+      'dash_expense_color_hex': dashExpenseColorHex,
+      'dash_neutral_color_hex': dashNeutralColorHex,
+      'dash_negative_color_hex': dashNegativeColorHex,
     };
   }
 }

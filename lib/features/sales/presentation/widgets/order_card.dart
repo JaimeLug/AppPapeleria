@@ -110,8 +110,8 @@ class OrderCard extends ConsumerWidget {
       statusChipBgColor = Colors.orange.withValues(alpha: 0.1);
     } else {
       statusChipText = 'PENDIENTE DE ENTREGA';
-      statusChipColor = Colors.yellow[800]!;
-      statusChipBgColor = Colors.yellow[100]!;
+      statusChipColor = const Color(0xFFB07507); // Ocre oscuro (paleta cálida)
+      statusChipBgColor = const Color(0xFFF7E9C8);
     }
 
     return InkWell(

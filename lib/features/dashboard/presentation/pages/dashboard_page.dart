@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../config/theme/app_theme.dart';
 import '../../../inventory/presentation/pages/product_management_page.dart';
 import '../../../inventory/presentation/pages/inventory_screen.dart';
 import '../../../sales/presentation/pages/sales_page.dart';
@@ -94,7 +95,11 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           duration: const Duration(milliseconds: 200),
           child: FloatingActionButton(
             onPressed: _showAddWidgetSheet,
-            backgroundColor: isTargeted ? Colors.redAccent : Theme.of(context).primaryColor,
+            // Café oscuro (tema); rojo cuando se arrastra una tarjeta encima
+            // para eliminarla.
+            backgroundColor: isTargeted
+                ? Colors.redAccent
+                : Theme.of(context).floatingActionButtonTheme.backgroundColor,
             child: Icon(
               isTargeted ? Icons.delete_outline : Icons.add,
               color: Colors.white,
@@ -151,9 +156,18 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
   }
 
   Widget _buildSidebar(BuildContext context) {
+    // Sidebar café oscuro (rediseño 2026): oscuro en ambos temas, como el
+    // mockup; en modo oscuro usa un tono un paso más profundo que el fondo.
+    // Configurable desde "Colores de la App" (marca blanca).
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final brandSidebarHex =
+        ref.watch(currentBrandConfigProvider.select((c) => c.sidebarColorHex));
+    final sidebarColor = brandSidebarHex != null
+        ? Color(brandSidebarHex)
+        : (isDark ? AppTheme.sidebarColorDark : AppTheme.sidebarColor);
     return Container(
       width: 250,
-      color: Theme.of(context).cardColor,
+      color: sidebarColor,
       child: Column(
         children: [
           const SizedBox(height: 40),
@@ -174,7 +188,7 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
                       style: GoogleFonts.quicksand(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(context).primaryColor,
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -489,27 +503,31 @@ class _SidebarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Sobre el sidebar oscuro: ítem activo = píldora del color de marca con
+    // texto blanco; inactivos en blanco tenue.
+    final inactiveColor = Colors.white.withValues(alpha: 0.65);
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? Theme.of(context).primaryColor.withValues(alpha: 0.1) : Colors.transparent,
+          color: isSelected ? Theme.of(context).primaryColor : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
             Icon(
               icon,
-              color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).textTheme.bodyMedium?.color,
+              color: isSelected ? Colors.white : inactiveColor,
               size: 22,
             ),
             const SizedBox(width: 16),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? Theme.of(context).primaryColor : Theme.of(context).textTheme.bodyMedium?.color,
+                color: isSelected ? Colors.white : inactiveColor,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 fontSize: 16,
               ),

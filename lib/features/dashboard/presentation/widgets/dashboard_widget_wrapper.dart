@@ -46,7 +46,7 @@ class _DragFeedbackState extends State<_DragFeedback>
           scale: _scale.value,
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.28 * _lift.value),
@@ -113,7 +113,7 @@ class _DashboardWidgetWrapperState extends State<DashboardWidgetWrapper> {
             ? (widget.backgroundColor?.withValues(alpha: 0.5) ?? Colors.white.withValues(alpha: 0.5)) 
             : (widget.backgroundColor ?? Theme.of(context).cardColor),
         gradient: widget.backgroundGradient,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: widget.isDragging ? [] : [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),

@@ -1,15 +1,52 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+/// Tema base "Papelería cálida" (rediseño 2026): fondo crema, sidebar café
+/// oscuro, titulares serif (Fraunces) y acentos terracota/verde.
+///
+/// La marca blanca sigue mandando: los colores configurables (primario,
+/// acento, fondo, tarjetas) llegan como parámetros y sobrescriben estos
+/// defaults. Estos valores solo definen el look de fábrica.
 class AppTheme {
-  static const Color backgroundColor = Color(0xFFFFFDF7); // Cream Paper
-  static const Color cardColor = Color(0xFFFFFFFF); // Pure White
-  static const Color titleColor = Color(0xFF2D2D2D); // Dark Grey
-  static const Color bodyColor = Color(0xFF4A4A4A); // Medium Grey
+  // Paleta clara
+  static const Color backgroundColor = Color(0xFFF7F1E8); // Crema cálido
+  static const Color cardColor = Color(0xFFFFFFFF); // Blanco
+  static const Color titleColor = Color(0xFF33291F); // Café oscuro
+  static const Color bodyColor = Color(0xFF6E6257); // Gris cálido
+
+  // Sidebar (oscuro en ambos temas, como el mockup)
+  static const Color sidebarColor = Color(0xFF2A231C);
+  static const Color sidebarColorDark = Color(0xFF201A14);
+
+  // Paleta oscura
+  static const Color darkBackground = Color(0xFF1B1511);
+  static const Color darkCard = Color(0xFF272019);
+
+  // Acentos por defecto (marca blanca los sobrescribe)
+  static const Color defaultPrimary = Color(0xFFC4571F); // Terracota
+  static const Color defaultSecondary = Color(0xFF1E7A4D); // Verde
+
+  static TextTheme _textTheme(Color title, Color body) {
+    return TextTheme(
+      // Titulares en serif cálida (Fraunces), como el mockup.
+      displayLarge: GoogleFonts.fraunces(
+          color: title, fontWeight: FontWeight.w600, fontSize: 34),
+      displayMedium: GoogleFonts.fraunces(
+          color: title, fontWeight: FontWeight.w600, fontSize: 26),
+      displaySmall: GoogleFonts.fraunces(
+          color: title, fontWeight: FontWeight.w600, fontSize: 21),
+      headlineSmall: GoogleFonts.fraunces(
+          color: title, fontWeight: FontWeight.w600, fontSize: 19),
+      titleLarge: GoogleFonts.quicksand(
+          color: title, fontWeight: FontWeight.bold, fontSize: 18),
+      bodyLarge: GoogleFonts.quicksand(color: body, fontSize: 16),
+      bodyMedium: GoogleFonts.quicksand(color: body, fontSize: 14),
+    );
+  }
 
   static ThemeData lightTheme({
-    Color primaryColor = const Color(0xFF8E24AA),
-    Color secondaryColor = const Color(0xFFBA68C8),
+    Color primaryColor = defaultPrimary,
+    Color secondaryColor = defaultSecondary,
     Color? background,
     Color? surface,
   }) {
@@ -25,33 +62,22 @@ class AppTheme {
         secondary: secondaryColor,
         surface: bg,
       ),
-      textTheme: TextTheme(
-        displayLarge: GoogleFonts.quicksand(
-            color: titleColor, fontWeight: FontWeight.bold, fontSize: 32),
-        displayMedium: GoogleFonts.quicksand(
-            color: titleColor, fontWeight: FontWeight.bold, fontSize: 24),
-        displaySmall: GoogleFonts.quicksand(
-            color: titleColor, fontWeight: FontWeight.bold, fontSize: 20),
-        titleLarge: GoogleFonts.quicksand(
-            color: titleColor, fontWeight: FontWeight.bold, fontSize: 18),
-        bodyLarge: GoogleFonts.quicksand(color: bodyColor, fontSize: 16),
-        bodyMedium: GoogleFonts.quicksand(color: bodyColor, fontSize: 14),
-      ),
+      textTheme: _textTheme(titleColor, bodyColor),
       cardTheme: CardThemeData(
         color: card,
-        elevation: 2,
-        shadowColor: Colors.black, // simplified to remove withOpacity const issue if any
+        elevation: 1,
+        shadowColor: Colors.black.withValues(alpha: 0.35),
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(24)),
+          borderRadius: BorderRadius.all(Radius.circular(16)),
         ),
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: bg,
         elevation: 0,
         iconTheme: const IconThemeData(color: titleColor),
-        titleTextStyle: GoogleFonts.quicksand(
+        titleTextStyle: GoogleFonts.fraunces(
           color: titleColor,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w600,
           fontSize: 20,
         ),
       ),
@@ -59,15 +85,15 @@ class AppTheme {
         filled: true,
         fillColor: card,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.05)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: titleColor.withValues(alpha: 0.08)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: primaryColor, width: 2),
         ),
         labelStyle: GoogleFonts.quicksand(color: bodyColor),
@@ -76,11 +102,11 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
-          elevation: 4,
+          elevation: 2,
           shadowColor: primaryColor.withValues(alpha: 0.3),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
           ),
           textStyle: GoogleFonts.quicksand(
             fontWeight: FontWeight.bold,
@@ -89,74 +115,63 @@ class AppTheme {
         ),
       ),
       iconTheme: IconThemeData(color: primaryColor),
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: primaryColor,
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: sidebarColor,
         foregroundColor: Colors.white,
-        elevation: 6,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
+        elevation: 4,
+        shape: CircleBorder(),
       ),
     );
   }
+
   static ThemeData darkTheme({
-    Color primaryColor = const Color(0xFF8E24AA),
-    Color secondaryColor = const Color(0xFFBA68C8),
+    Color primaryColor = defaultPrimary,
+    Color secondaryColor = defaultSecondary,
   }) {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: const Color(0xFF121212),
+      scaffoldBackgroundColor: darkBackground,
       primaryColor: primaryColor,
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,
         brightness: Brightness.dark,
         primary: primaryColor,
         secondary: secondaryColor,
-        surface: const Color(0xFF121212),
+        surface: darkBackground,
       ),
-      textTheme: TextTheme(
-        displayLarge: GoogleFonts.quicksand(
-            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 32),
-        displayMedium: GoogleFonts.quicksand(
-            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24),
-        displaySmall: GoogleFonts.quicksand(
-            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
-        titleLarge: GoogleFonts.quicksand(
-            color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-        bodyLarge: GoogleFonts.quicksand(color: Colors.white70, fontSize: 16),
-        bodyMedium: GoogleFonts.quicksand(color: Colors.white70, fontSize: 14),
-      ),
+      textTheme: _textTheme(Colors.white, Colors.white70),
       cardTheme: const CardThemeData(
-        color: Color(0xFF2C2C2C),
-        elevation: 2,
+        color: darkCard,
+        elevation: 1,
         shadowColor: Colors.black,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(24)),
+          borderRadius: BorderRadius.all(Radius.circular(16)),
         ),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: darkBackground,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
-        titleTextStyle: GoogleFonts.quicksand(
+        titleTextStyle: GoogleFonts.fraunces(
           color: Colors.white,
-          fontWeight: FontWeight.bold,
+          fontWeight: FontWeight.w600,
           fontSize: 20,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF2C2C2C),
+        fillColor: darkCard,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: primaryColor, width: 2),
         ),
         labelStyle: GoogleFonts.quicksand(color: Colors.white70),
@@ -166,11 +181,11 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
-          elevation: 4,
+          elevation: 2,
           shadowColor: primaryColor.withValues(alpha: 0.3),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(14),
           ),
           textStyle: GoogleFonts.quicksand(
             fontWeight: FontWeight.bold,
@@ -179,12 +194,11 @@ class AppTheme {
         ),
       ),
       iconTheme: IconThemeData(color: primaryColor),
-      floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: primaryColor,
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: sidebarColorDark,
         foregroundColor: Colors.white,
-        elevation: 6,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
+        elevation: 4,
+        shape: CircleBorder(),
       ),
       dividerTheme: DividerThemeData(
         color: Colors.white.withValues(alpha: 0.1),
