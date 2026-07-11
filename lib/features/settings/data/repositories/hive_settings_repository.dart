@@ -53,6 +53,8 @@ class HiveSettingsRepository implements SettingsRepository {
     final productsBox = Hive.box<ProductModel>('products');
     final expensesBox = Hive.box<ExpenseModel>('expenses');
     final incomesBox = Hive.box<IncomeModel>('incomes');
+    final inventoryBox = Hive.box<InventoryItemModel>('inventoryItems');
+    final movementsBox = Hive.box<StockMovementModel>('stockMovements');
 
     // El PIN de finanzas no se incluye en el backup exportado (que se guarda
     // como JSON en claro fuera de la app).
@@ -65,8 +67,10 @@ class HiveSettingsRepository implements SettingsRepository {
       'products': productsBox.values.map((e) => e.toJson()).toList(),
       'expenses': expensesBox.values.map((e) => e.toJson()).toList(),
       'incomes': incomesBox.values.map((e) => e.toJson()).toList(),
+      'inventoryItems': inventoryBox.values.map((e) => e.toJson()).toList(),
+      'stockMovements': movementsBox.values.map((e) => e.toJson()).toList(),
       'backupDate': DateTime.now().toIso8601String(),
-      'version': '1.0',
+      'version': '1.1',
     };
     
     final jsonString = jsonEncode(allData);
@@ -107,6 +111,14 @@ class HiveSettingsRepository implements SettingsRepository {
       await _restoreBox<ProductModel>('products', data['products'], ProductModel.fromJson);
       await _restoreBox<ExpenseModel>('expenses', data['expenses'], ExpenseModel.fromJson);
       await _restoreBox<IncomeModel>('incomes', data['incomes'], IncomeModel.fromJson);
+      // Solo restauramos inventario si el backup lo incluye (v1.1+). Un backup
+      // viejo v1.0 no trae estas claves y NO debe vaciar el inventario actual.
+      if (data.containsKey('inventoryItems')) {
+        await _restoreBox<InventoryItemModel>('inventoryItems', data['inventoryItems'], InventoryItemModel.fromJson);
+      }
+      if (data.containsKey('stockMovements')) {
+        await _restoreBox<StockMovementModel>('stockMovements', data['stockMovements'], StockMovementModel.fromJson);
+      }
 
       if (data['settings'] != null) {
         await _settingsBox.put('appSettings', data['settings']);
