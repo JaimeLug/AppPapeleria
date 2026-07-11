@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../../dashboard/presentation/providers/dashboard_palette_provider.dart';
 import '../providers/finance_provider.dart';
 import '../widgets/finance_summary_card.dart';
 import '../widgets/add_expense_dialog.dart';
@@ -18,7 +19,9 @@ class ExpensesPage extends ConsumerWidget {
     final transactionsAsync = ref.watch(unifiedTransactionsProvider);
     final balanceAsync = ref.watch(monthlyBalanceProvider);
     final activeFilter = ref.watch(financeFilterProvider);
-    
+    // Paleta cálida configurable (misma que el dashboard: ingresos/gastos).
+    final palette = ref.watch(dashboardPaletteProvider);
+
     return Scaffold(
 
       floatingActionButton: Column(
@@ -32,7 +35,7 @@ class ExpensesPage extends ConsumerWidget {
                 builder: (context) => const AddIncomeDialog(),
               );
             },
-            backgroundColor: Colors.green,
+            backgroundColor: palette.income,
             icon: const Icon(Icons.arrow_upward, color: Colors.white),
             label: const Text('Ingreso', style: TextStyle(color: Colors.white)),
           ),
@@ -45,7 +48,7 @@ class ExpensesPage extends ConsumerWidget {
                 builder: (context) => const AddExpenseDialog(),
               );
             },
-            backgroundColor: Colors.red,
+            backgroundColor: palette.expense,
             icon: const Icon(Icons.arrow_downward, color: Colors.white),
             label: const Text('Gasto', style: TextStyle(color: Colors.white)),
           ),
@@ -86,7 +89,7 @@ class ExpensesPage extends ConsumerWidget {
                       child: FinanceSummaryCard(
                         title: 'Ingresos',
                         amount: balance['income']!,
-                        color: Colors.green.shade600,
+                        color: palette.income,
                         icon: Icons.trending_up,
                         isSelected: activeFilter == 'income',
                       ),
@@ -102,7 +105,7 @@ class ExpensesPage extends ConsumerWidget {
                       child: FinanceSummaryCard(
                         title: 'Egresos',
                         amount: balance['expenses']!,
-                        color: Colors.red.shade600,
+                        color: palette.expense,
                         icon: Icons.trending_down,
                         isSelected: activeFilter == 'expense',
                       ),
@@ -113,7 +116,7 @@ class ExpensesPage extends ConsumerWidget {
                     child: FinanceSummaryCard(
                       title: 'Utilidad',
                       amount: balance['profit']!,
-                      color: Colors.blueGrey,
+                      color: palette.neutral,
                       icon: Icons.account_balance_wallet,
                     ),
                   ),
@@ -142,7 +145,7 @@ class ExpensesPage extends ConsumerWidget {
                       activeFilter == 'income' ? 'Solo Ingresos' : 'Solo Egresos',
                       style: const TextStyle(fontSize: 10, color: Colors.white),
                     ),
-                    backgroundColor: activeFilter == 'income' ? Colors.green : Colors.red,
+                    backgroundColor: activeFilter == 'income' ? palette.income : palette.expense,
                     onDeleted: () {
                       ref.read(financeFilterProvider.notifier).state = null;
                     },

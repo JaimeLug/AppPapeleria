@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../dashboard/presentation/providers/dashboard_palette_provider.dart';
 import '../../domain/entities/financial_transaction.dart';
 import '../providers/finance_provider.dart';
 
@@ -12,8 +13,9 @@ class TransactionListTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isIncome = transaction.type == 'income';
-    final color = isIncome ? Colors.green.shade700 : Colors.red.shade700;
-    final bgColor = isIncome ? Colors.green.withValues(alpha: 0.1) : Colors.red.withValues(alpha: 0.1);
+    final palette = ref.watch(dashboardPaletteProvider);
+    final color = isIncome ? palette.income : palette.expense;
+    final bgColor = color.withValues(alpha: 0.12);
     final icon = isIncome ? Icons.arrow_upward : Icons.arrow_downward;
 
     // Format amount absolute for display if we handle sign via color/prefix

@@ -96,7 +96,8 @@ class _DashboardPageState extends ConsumerState<DashboardPage> {
           child: FloatingActionButton(
             onPressed: _showAddWidgetSheet,
             // Café oscuro (tema); rojo cuando se arrastra una tarjeta encima
-            // para eliminarla.
+            // para eliminarla. Círculo como el mockup.
+            shape: const CircleBorder(),
             backgroundColor: isTargeted
                 ? Colors.redAccent
                 : Theme.of(context).floatingActionButtonTheme.backgroundColor,

@@ -119,7 +119,6 @@ class AppTheme {
         backgroundColor: sidebarColor,
         foregroundColor: Colors.white,
         elevation: 4,
-        shape: CircleBorder(),
       ),
     );
   }
@@ -198,7 +197,6 @@ class AppTheme {
         backgroundColor: sidebarColorDark,
         foregroundColor: Colors.white,
         elevation: 4,
-        shape: CircleBorder(),
       ),
       dividerTheme: DividerThemeData(
         color: Colors.white.withValues(alpha: 0.1),
