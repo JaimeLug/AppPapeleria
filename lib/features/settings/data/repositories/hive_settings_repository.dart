@@ -13,6 +13,7 @@ import '../../../../features/inventory/data/models/inventory_item_model.dart';
 import '../../../../features/inventory/data/models/stock_movement_model.dart';
 import '../../../../features/finance/data/models/expense_model.dart';
 import '../../../../features/finance/data/models/income_model.dart';
+import '../../domain/models/brand_config_model.dart';
 
 class HiveSettingsRepository implements SettingsRepository {
   final Box _settingsBox;
@@ -141,7 +142,7 @@ class HiveSettingsRepository implements SettingsRepository {
   @override
   Future<void> factoryReset(String pin) async {
     if (pin != '2308') throw Exception('PIN de Desarrollador incorrecto');
-    
+
     await Hive.box<OrderModel>('orders').clear();
     await Hive.box<CustomerModel>('customers').clear();
     await Hive.box<ProductModel>('products').clear();
@@ -150,5 +151,11 @@ class HiveSettingsRepository implements SettingsRepository {
     await Hive.box<InventoryItemModel>('inventoryItems').clear();
     await Hive.box<StockMovementModel>('stockMovements').clear();
     await _settingsBox.clear();
+    // También la marca (logo/colores) para volver a la apariencia por defecto.
+    // Nota: esto es LOCAL; si hay una fila en brand_settings (nube) se volverá
+    // a bajar al reconciliar. Para un reset total hay que vaciar Supabase.
+    if (Hive.isBoxOpen('brandConfigBox')) {
+      await Hive.box<BrandConfigModel>('brandConfigBox').clear();
+    }
   }
 }
