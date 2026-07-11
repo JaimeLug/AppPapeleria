@@ -24,7 +24,10 @@ import 'features/auth/presentation/providers/auth_providers.dart';
 import 'features/auth/presentation/pages/login_screen.dart';
 import 'features/auth/presentation/pages/session_gate.dart';
 import 'core/services/sync_manager.dart';
+import 'core/services/supabase_credentials_store.dart';
 import 'core/services/window_branding.dart';
+import 'features/onboarding/presentation/pages/onboarding_wizard.dart';
+import 'features/onboarding/presentation/pages/database_setup_screen.dart';
 
 /// Navigator global para poder mostrar diálogos desde el interceptor de cierre.
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -71,12 +74,19 @@ Future<void> _bootstrap() async {
   bool isSupabaseConfigured = false;
   String supabaseUrl = '';
   String supabaseAnonKey = '';
-  
-  if (dotenv.isInitialized) {
+
+  // Prioridad: credenciales guardadas (asistente) SOBRE el .env por defecto.
+  // Así la instalación de fábrica funciona sola con la base actual, y un
+  // cliente con su propia base puede sobrescribirla sin reinstalar.
+  final storedCreds = await SupabaseCredentialsStore.load();
+  if (storedCreds != null) {
+    supabaseUrl = storedCreds.url;
+    supabaseAnonKey = storedCreds.anonKey;
+  } else if (dotenv.isInitialized) {
     supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
     supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
   }
-  
+
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
       await Supabase.initialize(
         url: supabaseUrl,
@@ -289,29 +299,16 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
     final isDarkMode = ref.watch(settingsProvider.select((s) => s.isDarkMode));
 
     if (!isSupabaseConfigured) {
+      // Sin credenciales de Supabase: pantalla para ingresarlas. No usa
+      // providers que dependan de Supabase (aún no está inicializado).
       return MaterialApp(
         title: 'Papelería Pro',
         debugShowCheckedModeBanner: false,
-      navigatorKey: navigatorKey,
+        navigatorKey: navigatorKey,
         theme: AppTheme.lightTheme(),
         darkTheme: AppTheme.darkTheme(),
         themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
-        home: const Scaffold(
-          body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.cloud_off, size: 80, color: Colors.grey),
-                SizedBox(height: 16),
-                Text(
-                  'Sin base de Datos\nRevisa tu conexión en el entorno',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 20, color: Colors.grey, fontWeight: FontWeight.w500),
-                ),
-              ],
-            ),
-          ),
-        ),
+        home: const DatabaseSetupScreen(),
       );
     }
 
@@ -320,6 +317,9 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
 
     final brandConfig = ref.watch(currentBrandConfigProvider);
     final authStateAsync = ref.watch(authStateProvider);
+    // Primera vez en este dispositivo: muestra el asistente de bienvenida.
+    final onboardingDone =
+        ref.watch(settingsProvider.select((s) => s.onboardingCompleted));
 
     return MaterialApp(
       title: brandConfig.appName,
@@ -340,21 +340,23 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
         secondaryColor: Color(brandConfig.accentColorHex),
       ),
       themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      home: authStateAsync.when(
-        data: (authState) {
-          if (authState.session != null) {
-            return const SessionGate();
-          } else {
-            return const LoginScreen();
-          }
-        },
-        loading: () => const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
-        error: (err, stack) => Scaffold(
-          body: Center(child: Text('Error de Autenticación: $err')),
-        ),
-      ),
+      home: !onboardingDone
+          ? const OnboardingWizard(isSupabaseConfigured: true)
+          : authStateAsync.when(
+              data: (authState) {
+                if (authState.session != null) {
+                  return const SessionGate();
+                } else {
+                  return const LoginScreen();
+                }
+              },
+              loading: () => const Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              ),
+              error: (err, stack) => Scaffold(
+                body: Center(child: Text('Error de Autenticación: $err')),
+              ),
+            ),
     );
   }
 }

@@ -26,6 +26,10 @@ class AppSettings {
   
   final String quickNoteContent;
 
+  /// Si el asistente de bienvenida (primera vez) ya se completó en este
+  /// dispositivo. Es local por instalación (no se sincroniza).
+  final bool onboardingCompleted;
+
   const AppSettings({
     this.businessName = 'Papelería Pro',
     this.businessAddress = '',
@@ -40,6 +44,7 @@ class AppSettings {
     this.productCategories = const [],
     this.dashboardLayout,
     this.quickNoteContent = '',
+    this.onboardingCompleted = false,
   });
 
   AppSettings copyWith({
@@ -56,6 +61,7 @@ class AppSettings {
     List<String>? productCategories,
     List<DashboardWidgetConfig>? dashboardLayout,
     String? quickNoteContent,
+    bool? onboardingCompleted,
   }) {
     return AppSettings(
       businessName: businessName ?? this.businessName,
@@ -71,6 +77,7 @@ class AppSettings {
       productCategories: productCategories ?? this.productCategories,
       dashboardLayout: dashboardLayout ?? this.dashboardLayout,
       quickNoteContent: quickNoteContent ?? this.quickNoteContent,
+      onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
     );
   }
 
@@ -89,6 +96,7 @@ class AppSettings {
       'productCategories': productCategories,
       'dashboardLayout': dashboardLayout?.map((e) => e.toMap()).toList(),
       'quickNoteContent': quickNoteContent,
+      'onboardingCompleted': onboardingCompleted,
     };
   }
 
@@ -124,6 +132,7 @@ class AppSettings {
       productCategories: map['productCategories'] != null ? List<String>.from(map['productCategories']) : const [],
       dashboardLayout: layout,
       quickNoteContent: map['quickNoteContent'] ?? '',
+      onboardingCompleted: map['onboardingCompleted'] ?? false,
     );
   }
 }
@@ -203,6 +212,12 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
   void updateQuickNote(String content) {
     state = state.copyWith(quickNoteContent: content);
+    _saveSettings();
+  }
+
+  /// Marca el asistente de bienvenida como completado (no vuelve a salir).
+  void completeOnboarding() {
+    state = state.copyWith(onboardingCompleted: true);
     _saveSettings();
   }
 
