@@ -32,6 +32,10 @@ import 'features/onboarding/presentation/pages/database_setup_screen.dart';
 /// Navigator global para poder mostrar diálogos desde el interceptor de cierre.
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
+/// Mensaje de progreso del arranque (se muestra en el splash). Si la app se
+/// queda pegada, este texto revela EN QUÉ paso se atoró.
+final ValueNotifier<String> bootStatus = ValueNotifier<String>('Iniciando…');
+
 /// True en plataformas de escritorio donde window_manager está disponible.
 bool get isDesktop =>
     !kIsWeb &&
@@ -101,15 +105,17 @@ Future<void> _bootstrap() async {
   // En escritorio, interceptamos el botón de cerrar la ventana para guardar
   // el trabajo antes de salir.
   if (isDesktop) {
+    bootStatus.value = 'Preparando ventana…';
     try {
-      await windowManager.ensureInitialized();
-      await windowManager.setPreventClose(true);
+      await windowManager.ensureInitialized().timeout(const Duration(seconds: 8));
+      await windowManager.setPreventClose(true).timeout(const Duration(seconds: 8));
     } catch (e) {
       debugPrint('window_manager no se pudo inicializar: $e');
     }
   }
 
   // Load environment variables gracefully
+  bootStatus.value = 'Cargando configuración…';
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
@@ -122,10 +128,12 @@ Future<void> _bootstrap() async {
   String supabaseAnonKey = '';
 
   // Prioridad: credenciales guardadas (asistente) SOBRE el .env por defecto.
-  // Si leer el almacenamiento cifrado falla (p. ej. en un equipo nuevo), no
-  // debe tumbar el arranque: se cae al .env.
+  // Si leer el almacenamiento cifrado falla o se cuelga (p. ej. en un equipo
+  // nuevo), no debe tumbar el arranque: se cae al .env.
+  bootStatus.value = 'Leyendo credenciales…';
   try {
-    final storedCreds = await SupabaseCredentialsStore.load();
+    final storedCreds =
+        await SupabaseCredentialsStore.load().timeout(const Duration(seconds: 6));
     if (storedCreds != null) {
       supabaseUrl = storedCreds.url;
       supabaseAnonKey = storedCreds.anonKey;
@@ -139,11 +147,12 @@ Future<void> _bootstrap() async {
   }
 
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+    bootStatus.value = 'Conectando a la base de datos…';
     try {
       await Supabase.initialize(
         url: supabaseUrl,
         anonKey: supabaseAnonKey,
-      ).timeout(const Duration(seconds: 20));
+      ).timeout(const Duration(seconds: 12));
       isSupabaseConfigured = true;
       debugPrint('Supabase inicializado correctamente.');
     } catch (e) {
@@ -155,13 +164,15 @@ Future<void> _bootstrap() async {
   }
 
   // Initialize Spanish locale for date formatting
+  bootStatus.value = 'Preparando idioma…';
   try {
-    await initializeDateFormatting('es_ES', null);
+    await initializeDateFormatting('es_ES', null).timeout(const Duration(seconds: 8));
   } catch (e) {
     debugPrint('initializeDateFormatting falló: $e');
   }
 
   // Initialize Hive (crítico: sin base local la app no funciona)
+  bootStatus.value = 'Abriendo base local…';
   try {
     await Hive.initFlutter();
     Hive.registerAdapter(CustomerModelAdapter());
@@ -188,6 +199,7 @@ Future<void> _bootstrap() async {
     debugPrint('Error crítico en Hive: $e');
   }
 
+  bootStatus.value = 'Cargando app…';
   runApp(
     ProviderScope(
       child: MyApp(
@@ -224,9 +236,13 @@ class _StartupSplash extends StatelessWidget {
               const SizedBox(height: 20),
               const CircularProgressIndicator(color: AppTheme.defaultPrimary),
               const SizedBox(height: 16),
-              Text(
-                'Iniciando…',
-                style: TextStyle(color: AppTheme.bodyColor, fontSize: 14),
+              ValueListenableBuilder<String>(
+                valueListenable: bootStatus,
+                builder: (context, status, _) => Text(
+                  status,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppTheme.bodyColor, fontSize: 14),
+                ),
               ),
             ],
           ),
