@@ -56,11 +56,20 @@ Future<void> _bootstrap() async {
     debugPrint('FlutterError capturado: ${details.exceptionAsString()}');
   };
 
+  // A partir de aquí CADA paso va protegido: pase lo que pase, se llega a
+  // runApp(). Si un paso crítico (Hive) falla, se muestra el error en
+  // pantalla en vez de dejar la ventana en gris.
+  String? initializationError;
+
   // En escritorio, interceptamos el botón de cerrar la ventana para guardar
   // el trabajo antes de salir.
   if (isDesktop) {
-    await windowManager.ensureInitialized();
-    await windowManager.setPreventClose(true);
+    try {
+      await windowManager.ensureInitialized();
+      await windowManager.setPreventClose(true);
+    } catch (e) {
+      debugPrint('window_manager no se pudo inicializar: $e');
+    }
   }
 
   // Load environment variables gracefully
@@ -76,46 +85,58 @@ Future<void> _bootstrap() async {
   String supabaseAnonKey = '';
 
   // Prioridad: credenciales guardadas (asistente) SOBRE el .env por defecto.
-  // Así la instalación de fábrica funciona sola con la base actual, y un
-  // cliente con su propia base puede sobrescribirla sin reinstalar.
-  final storedCreds = await SupabaseCredentialsStore.load();
-  if (storedCreds != null) {
-    supabaseUrl = storedCreds.url;
-    supabaseAnonKey = storedCreds.anonKey;
-  } else if (dotenv.isInitialized) {
+  // Si leer el almacenamiento cifrado falla (p. ej. en un equipo nuevo), no
+  // debe tumbar el arranque: se cae al .env.
+  try {
+    final storedCreds = await SupabaseCredentialsStore.load();
+    if (storedCreds != null) {
+      supabaseUrl = storedCreds.url;
+      supabaseAnonKey = storedCreds.anonKey;
+    }
+  } catch (e) {
+    debugPrint('No se pudieron leer credenciales guardadas: $e');
+  }
+  if (supabaseUrl.isEmpty && dotenv.isInitialized) {
     supabaseUrl = dotenv.env['SUPABASE_URL'] ?? '';
     supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? '';
   }
 
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+    try {
       await Supabase.initialize(
         url: supabaseUrl,
         anonKey: supabaseAnonKey,
-      );
+      ).timeout(const Duration(seconds: 20));
       isSupabaseConfigured = true;
       debugPrint('Supabase inicializado correctamente.');
+    } catch (e) {
+      // No es fatal: la app puede abrir la pantalla de configuración.
+      debugPrint('Supabase.initialize falló: $e');
+    }
   } else {
-      debugPrint('Advertencia: Faltan llaves de Supabase en .env');
+    debugPrint('Advertencia: Faltan llaves de Supabase (ni guardadas ni en .env)');
   }
 
   // Initialize Spanish locale for date formatting
-  await initializeDateFormatting('es_ES', null);
-  
-  String? initializationError;
-
-  // Initialize Hive
-  await Hive.initFlutter();
-  Hive.registerAdapter(CustomerModelAdapter());
-  Hive.registerAdapter(OrderModelAdapter());
-  Hive.registerAdapter(ProductModelAdapter());
-  Hive.registerAdapter(OrderItemModelAdapter());
-  Hive.registerAdapter(ExpenseModelAdapter());
-  Hive.registerAdapter(IncomeModelAdapter());
-  Hive.registerAdapter(InventoryItemModelAdapter());
-  Hive.registerAdapter(StockMovementModelAdapter());
-  Hive.registerAdapter(BrandConfigModelAdapter());
-  
   try {
+    await initializeDateFormatting('es_ES', null);
+  } catch (e) {
+    debugPrint('initializeDateFormatting falló: $e');
+  }
+
+  // Initialize Hive (crítico: sin base local la app no funciona)
+  try {
+    await Hive.initFlutter();
+    Hive.registerAdapter(CustomerModelAdapter());
+    Hive.registerAdapter(OrderModelAdapter());
+    Hive.registerAdapter(ProductModelAdapter());
+    Hive.registerAdapter(OrderItemModelAdapter());
+    Hive.registerAdapter(ExpenseModelAdapter());
+    Hive.registerAdapter(IncomeModelAdapter());
+    Hive.registerAdapter(InventoryItemModelAdapter());
+    Hive.registerAdapter(StockMovementModelAdapter());
+    Hive.registerAdapter(BrandConfigModelAdapter());
+
     await Hive.openBox<CustomerModel>('customers');
     await Hive.openBox<OrderModel>('orders');
     await Hive.openBox<ProductModel>('products');
@@ -126,11 +147,10 @@ Future<void> _bootstrap() async {
     await Hive.openBox('settings');
     await Hive.openBox<BrandConfigModel>('brandConfigBox');
   } catch (e) {
-    initializationError = 'No se pudo abrir la base local de Hive: $e';
-    debugPrint('Error crítico al abrir cajas de Hive: $e');
-    debugPrint('No se borraron datos locales automáticamente.');
+    initializationError = 'No se pudo iniciar la base local: $e';
+    debugPrint('Error crítico en Hive: $e');
   }
-  
+
   runApp(
     ProviderScope(
       child: MyApp(
