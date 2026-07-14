@@ -37,6 +37,23 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 /// queda pegada, este texto revela EN QUÉ paso se atoró.
 final ValueNotifier<String> bootStatus = ValueNotifier<String>('Iniciando…');
 
+/// Abre una caja de Hive de forma tolerante: si los datos guardados son
+/// incompatibles (una versión anterior con otro formato) y la apertura falla,
+/// borra la caja y la recrea vacía. Los datos locales son solo caché de
+/// Supabase (se vuelven a bajar), así que la app nunca debe quedarse sin
+/// arrancar por una caja corrupta.
+Future<void> _openBoxSafe<T>(String name) async {
+  try {
+    await Hive.openBox<T>(name);
+  } catch (e) {
+    bootLog('  openBox($name) FALLÓ ($e) -> recreando vacía');
+    try {
+      await Hive.deleteBoxFromDisk(name);
+    } catch (_) {}
+    await Hive.openBox<T>(name);
+  }
+}
+
 /// Escribe una línea de diagnóstico a un .txt en el Escritorio del usuario.
 /// Sirve para depurar el arranque en la computadora del cliente: si la app se
 /// queda pegada, este archivo muestra hasta dónde llegó y qué falló.
@@ -213,7 +230,9 @@ Future<void> _bootstrap() async {
   bootStatus.value = 'Abriendo base local…';
   bootLog('Paso: Hive…');
   try {
-    await Hive.initFlutter();
+    // Carpeta propia: NO comparte datos con la app vieja "Corateca" (que usa
+    // el mismo directorio de documentos y tiene un formato incompatible).
+    await Hive.initFlutter('papeleria_pro');
     Hive.registerAdapter(CustomerModelAdapter());
     Hive.registerAdapter(OrderModelAdapter());
     Hive.registerAdapter(ProductModelAdapter());
@@ -224,15 +243,16 @@ Future<void> _bootstrap() async {
     Hive.registerAdapter(StockMovementModelAdapter());
     Hive.registerAdapter(BrandConfigModelAdapter());
 
-    await Hive.openBox<CustomerModel>('customers');
-    await Hive.openBox<OrderModel>('orders');
-    await Hive.openBox<ProductModel>('products');
-    await Hive.openBox<ExpenseModel>('expenses');
-    await Hive.openBox<IncomeModel>('incomes');
-    await Hive.openBox<InventoryItemModel>('inventoryItems');
-    await Hive.openBox<StockMovementModel>('stockMovements');
-    await Hive.openBox('settings');
-    await Hive.openBox<BrandConfigModel>('brandConfigBox');
+    // Apertura tolerante: si una caja tiene datos incompatibles, se recrea.
+    await _openBoxSafe<CustomerModel>('customers');
+    await _openBoxSafe<OrderModel>('orders');
+    await _openBoxSafe<ProductModel>('products');
+    await _openBoxSafe<ExpenseModel>('expenses');
+    await _openBoxSafe<IncomeModel>('incomes');
+    await _openBoxSafe<InventoryItemModel>('inventoryItems');
+    await _openBoxSafe<StockMovementModel>('stockMovements');
+    await _openBoxSafe<dynamic>('settings');
+    await _openBoxSafe<BrandConfigModel>('brandConfigBox');
     bootLog('  Hive OK');
   } catch (e) {
     initializationError = 'No se pudo iniciar la base local: $e';
