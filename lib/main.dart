@@ -56,6 +56,38 @@ Future<void> _bootstrap() async {
     debugPrint('FlutterError capturado: ${details.exceptionAsString()}');
   };
 
+  // En release, un error al construir un widget se muestra como un cuadro GRIS
+  // (no el error rojo de desarrollo). Aquí lo reemplazamos por el texto del
+  // error, para poder verlo en pantalla en vez de quedarnos en gris.
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: const Color(0xFFF7F1E8),
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+              const SizedBox(height: 12),
+              const Text(
+                'Ocurrió un error al iniciar la app',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF33291F)),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '${details.exception}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 13, color: Color(0xFF6E6257)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  };
+
   // Pinta ALGO de inmediato, antes de toda la inicialización. Si esta pantalla
   // aparece, Flutter puede dibujar (el problema estaría en la inicialización);
   // si la ventana queda en gris total, es un problema de render (GPU/motor).
