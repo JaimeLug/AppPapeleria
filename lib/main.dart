@@ -56,6 +56,11 @@ Future<void> _bootstrap() async {
     debugPrint('FlutterError capturado: ${details.exceptionAsString()}');
   };
 
+  // Pinta ALGO de inmediato, antes de toda la inicialización. Si esta pantalla
+  // aparece, Flutter puede dibujar (el problema estaría en la inicialización);
+  // si la ventana queda en gris total, es un problema de render (GPU/motor).
+  runApp(const _StartupSplash());
+
   // A partir de aquí CADA paso va protegido: pase lo que pase, se llega a
   // runApp(). Si un paso crítico (Hive) falla, se muestra el error en
   // pantalla en vez de dejar la ventana en gris.
@@ -159,6 +164,44 @@ Future<void> _bootstrap() async {
       ),
     ),
   );
+}
+
+/// Pantalla mínima que se pinta antes de inicializar todo. No usa providers
+/// ni Supabase (aún no existen). Sirve de splash y de diagnóstico de render.
+class _StartupSplash extends StatelessWidget {
+  const _StartupSplash();
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: AppTheme.backgroundColor,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Papelería Pro',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.titleColor,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const CircularProgressIndicator(color: AppTheme.defaultPrimary),
+              const SizedBox(height: 16),
+              Text(
+                'Iniciando…',
+                style: TextStyle(color: AppTheme.bodyColor, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class MyApp extends ConsumerStatefulWidget {
