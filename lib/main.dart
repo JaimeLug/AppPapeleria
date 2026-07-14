@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,23 +53,9 @@ Future<void> _openBoxSafe<T>(String name) async {
   }
 }
 
-/// Escribe una línea de diagnóstico a un .txt en el Escritorio del usuario.
-/// Sirve para depurar el arranque en la computadora del cliente: si la app se
-/// queda pegada, este archivo muestra hasta dónde llegó y qué falló.
-/// Es best-effort: si no puede escribir, no rompe nada.
+/// Log de arranque a consola (útil en desarrollo; no escribe archivos).
 void bootLog(String msg, {bool reset = false}) {
-  try {
-    final home = Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'];
-    if (home == null || home.isEmpty) return;
-    final file = File('$home${Platform.pathSeparator}Desktop${Platform.pathSeparator}PapeleriaPro_diagnostico.txt');
-    file.writeAsStringSync(
-      '[${DateTime.now().toIso8601String()}] $msg\n',
-      mode: reset ? FileMode.write : FileMode.append,
-      flush: true,
-    );
-  } catch (_) {
-    // Ignorado: el log nunca debe afectar el arranque.
-  }
+  debugPrint('[boot] $msg');
 }
 
 /// True en plataformas de escritorio donde window_manager está disponible.
@@ -330,9 +315,6 @@ class MyApp extends ConsumerStatefulWidget {
 }
 
 class _MyAppState extends ConsumerState<MyApp> with WindowListener {
-  bool _loggedBuild = false; // para registrar el primer build en el diagnóstico
-  bool _loggedHome = false; // para registrar la pantalla de destino una sola vez
-
   @override
   void initState() {
     super.initState();
@@ -435,11 +417,6 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
     final isSupabaseConfigured = widget.isSupabaseConfigured;
     final initializationError = widget.initializationError;
 
-    if (!_loggedBuild) {
-      _loggedBuild = true;
-      bootLog('MyApp.build: supaConfig=$isSupabaseConfigured, hiveError=${initializationError != null}');
-    }
-
     if (initializationError != null) {
       return MaterialApp(
         title: 'Papelería Pro',
@@ -490,10 +467,7 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
         theme: AppTheme.lightTheme(),
         darkTheme: AppTheme.darkTheme(),
         themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
-        home: Builder(builder: (_) {
-          bootLog('MyApp -> DatabaseSetupScreen (Supabase no inicializó)');
-          return const DatabaseSetupScreen();
-        }),
+        home: const DatabaseSetupScreen(),
       );
     }
 
@@ -505,16 +479,6 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
     // Primera vez en este dispositivo: muestra el asistente de bienvenida.
     final onboardingDone =
         ref.watch(settingsProvider.select((s) => s.onboardingCompleted));
-
-    if (!_loggedHome) {
-      _loggedHome = true;
-      final auth = authStateAsync.isLoading
-          ? 'cargando'
-          : authStateAsync.hasError
-              ? 'error'
-              : 'sesion=${authStateAsync.value?.session != null}';
-      bootLog('MyApp -> home: onboardingDone=$onboardingDone, auth=$auth');
-    }
 
     return MaterialApp(
       title: brandConfig.appName,
