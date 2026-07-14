@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -36,6 +37,25 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 /// queda pegada, este texto revela EN QUÉ paso se atoró.
 final ValueNotifier<String> bootStatus = ValueNotifier<String>('Iniciando…');
 
+/// Escribe una línea de diagnóstico a un .txt en el Escritorio del usuario.
+/// Sirve para depurar el arranque en la computadora del cliente: si la app se
+/// queda pegada, este archivo muestra hasta dónde llegó y qué falló.
+/// Es best-effort: si no puede escribir, no rompe nada.
+void bootLog(String msg, {bool reset = false}) {
+  try {
+    final home = Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'];
+    if (home == null || home.isEmpty) return;
+    final file = File('$home${Platform.pathSeparator}Desktop${Platform.pathSeparator}PapeleriaPro_diagnostico.txt');
+    file.writeAsStringSync(
+      '[${DateTime.now().toIso8601String()}] $msg\n',
+      mode: reset ? FileMode.write : FileMode.append,
+      flush: true,
+    );
+  } catch (_) {
+    // Ignorado: el log nunca debe afectar el arranque.
+  }
+}
+
 /// True en plataformas de escritorio donde window_manager está disponible.
 bool get isDesktop =>
     !kIsWeb &&
@@ -53,10 +73,12 @@ void main() {
 
 Future<void> _bootstrap() async {
   WidgetsFlutterBinding.ensureInitialized();
+  bootLog('=== ARRANQUE Papelería Pro ===', reset: true);
 
   // Errores del framework de Flutter (build, layout, gestos...).
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
+    bootLog('FlutterError: ${details.exceptionAsString()}');
     debugPrint('FlutterError capturado: ${details.exceptionAsString()}');
   };
 
@@ -106,19 +128,25 @@ Future<void> _bootstrap() async {
   // el trabajo antes de salir.
   if (isDesktop) {
     bootStatus.value = 'Preparando ventana…';
+    bootLog('Paso: window_manager…');
     try {
       await windowManager.ensureInitialized().timeout(const Duration(seconds: 8));
       await windowManager.setPreventClose(true).timeout(const Duration(seconds: 8));
+      bootLog('  window_manager OK');
     } catch (e) {
+      bootLog('  window_manager FALLÓ: $e');
       debugPrint('window_manager no se pudo inicializar: $e');
     }
   }
 
   // Load environment variables gracefully
   bootStatus.value = 'Cargando configuración…';
+  bootLog('Paso: cargar .env…');
   try {
     await dotenv.load(fileName: ".env");
+    bootLog('  .env OK (url=${(dotenv.env['SUPABASE_URL'] ?? '').isNotEmpty})');
   } catch (e) {
+    bootLog('  .env FALLÓ: $e');
     debugPrint('Advertencia: No se encontró archivo .env. Asegúrate de crearlo o verificar que esté en assets.');
   }
 
@@ -131,6 +159,7 @@ Future<void> _bootstrap() async {
   // Si leer el almacenamiento cifrado falla o se cuelga (p. ej. en un equipo
   // nuevo), no debe tumbar el arranque: se cae al .env.
   bootStatus.value = 'Leyendo credenciales…';
+  bootLog('Paso: leer credenciales guardadas (secure storage)…');
   try {
     final storedCreds =
         await SupabaseCredentialsStore.load().timeout(const Duration(seconds: 6));
@@ -138,7 +167,9 @@ Future<void> _bootstrap() async {
       supabaseUrl = storedCreds.url;
       supabaseAnonKey = storedCreds.anonKey;
     }
+    bootLog('  credenciales guardadas OK (existen=${storedCreds != null})');
   } catch (e) {
+    bootLog('  credenciales guardadas FALLÓ/timeout: $e');
     debugPrint('No se pudieron leer credenciales guardadas: $e');
   }
   if (supabaseUrl.isEmpty && dotenv.isInitialized) {
@@ -148,31 +179,39 @@ Future<void> _bootstrap() async {
 
   if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
     bootStatus.value = 'Conectando a la base de datos…';
+    bootLog('Paso: Supabase.initialize…');
     try {
       await Supabase.initialize(
         url: supabaseUrl,
         anonKey: supabaseAnonKey,
       ).timeout(const Duration(seconds: 12));
       isSupabaseConfigured = true;
+      bootLog('  Supabase.initialize OK');
       debugPrint('Supabase inicializado correctamente.');
     } catch (e) {
       // No es fatal: la app puede abrir la pantalla de configuración.
+      bootLog('  Supabase.initialize FALLÓ/timeout: $e');
       debugPrint('Supabase.initialize falló: $e');
     }
   } else {
+    bootLog('  SIN credenciales de Supabase (ni guardadas ni .env)');
     debugPrint('Advertencia: Faltan llaves de Supabase (ni guardadas ni en .env)');
   }
 
   // Initialize Spanish locale for date formatting
   bootStatus.value = 'Preparando idioma…';
+  bootLog('Paso: locale es_ES…');
   try {
     await initializeDateFormatting('es_ES', null).timeout(const Duration(seconds: 8));
+    bootLog('  locale OK');
   } catch (e) {
+    bootLog('  locale FALLÓ: $e');
     debugPrint('initializeDateFormatting falló: $e');
   }
 
   // Initialize Hive (crítico: sin base local la app no funciona)
   bootStatus.value = 'Abriendo base local…';
+  bootLog('Paso: Hive…');
   try {
     await Hive.initFlutter();
     Hive.registerAdapter(CustomerModelAdapter());
@@ -194,12 +233,15 @@ Future<void> _bootstrap() async {
     await Hive.openBox<StockMovementModel>('stockMovements');
     await Hive.openBox('settings');
     await Hive.openBox<BrandConfigModel>('brandConfigBox');
+    bootLog('  Hive OK');
   } catch (e) {
     initializationError = 'No se pudo iniciar la base local: $e';
+    bootLog('  Hive FALLÓ: $e');
     debugPrint('Error crítico en Hive: $e');
   }
 
   bootStatus.value = 'Cargando app…';
+  bootLog('Paso: runApp(MyApp) — supaConfig=$isSupabaseConfigured, hiveError=${initializationError != null}');
   runApp(
     ProviderScope(
       child: MyApp(
@@ -208,6 +250,7 @@ Future<void> _bootstrap() async {
       ),
     ),
   );
+  bootLog('runApp(MyApp) llamado — fin de _bootstrap');
 }
 
 /// Pantalla mínima que se pinta antes de inicializar todo. No usa providers
@@ -267,6 +310,9 @@ class MyApp extends ConsumerStatefulWidget {
 }
 
 class _MyAppState extends ConsumerState<MyApp> with WindowListener {
+  bool _loggedBuild = false; // para registrar el primer build en el diagnóstico
+  bool _loggedHome = false; // para registrar la pantalla de destino una sola vez
+
   @override
   void initState() {
     super.initState();
@@ -369,6 +415,11 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
     final isSupabaseConfigured = widget.isSupabaseConfigured;
     final initializationError = widget.initializationError;
 
+    if (!_loggedBuild) {
+      _loggedBuild = true;
+      bootLog('MyApp.build: supaConfig=$isSupabaseConfigured, hiveError=${initializationError != null}');
+    }
+
     if (initializationError != null) {
       return MaterialApp(
         title: 'Papelería Pro',
@@ -419,7 +470,10 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
         theme: AppTheme.lightTheme(),
         darkTheme: AppTheme.darkTheme(),
         themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
-        home: const DatabaseSetupScreen(),
+        home: Builder(builder: (_) {
+          bootLog('MyApp -> DatabaseSetupScreen (Supabase no inicializó)');
+          return const DatabaseSetupScreen();
+        }),
       );
     }
 
@@ -431,6 +485,16 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
     // Primera vez en este dispositivo: muestra el asistente de bienvenida.
     final onboardingDone =
         ref.watch(settingsProvider.select((s) => s.onboardingCompleted));
+
+    if (!_loggedHome) {
+      _loggedHome = true;
+      final auth = authStateAsync.isLoading
+          ? 'cargando'
+          : authStateAsync.hasError
+              ? 'error'
+              : 'sesion=${authStateAsync.value?.session != null}';
+      bootLog('MyApp -> home: onboardingDone=$onboardingDone, auth=$auth');
+    }
 
     return MaterialApp(
       title: brandConfig.appName,
